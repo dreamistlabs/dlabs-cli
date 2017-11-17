@@ -1,0 +1,34 @@
+{
+  "name": "npm-jumpstarter",
+  "version": "0.0.1",
+  "description": "",
+  "author": "Johnny Hu <heyitsjhu@gmailcom>",
+  "main": "/bin/jumpstarter-cli.js",
+  "bin": {
+    "npm-jumpstarter": "/bin/jumpstarter-cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heyitsjhu/npm-jumpstarter.git"
+  },
+  "dependencies": {
+    "commander": "^2.11.0",
+    "shelljs": "^0.7.8"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bugs": {
+    "url": "https://github.com/heyitsjhu/npm-jumpstarter/issues"
+  },
+  "homepage": "https://github.com/heyitsjhu/npm-jumpstarter#readme",
+  "license": "MIT",
+  "keywords": [
+    "npm",
+    "node",
+    "package",
+    "starter",
+    "kit",
+    "cli"
+  ]
+}
