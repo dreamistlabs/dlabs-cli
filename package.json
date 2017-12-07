@@ -5,7 +5,7 @@
   "author": "Johnny Hu <heyitsjhu@gmailcom>",
   "main": "/bin/jumpstarter-cli.js",
   "bin": {
-    "npm-jumpstarter": "/bin/jumpstarter-cli.js"
+    "npm-jumpstarter": "./bin/jumpstarter-cli.js"
   },
   "repository": {
     "type": "git",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "commander": "^2.11.0",
+    "node-jq": "^0.7.0",
     "shelljs": "^0.7.8"
   },
   "scripts": {
