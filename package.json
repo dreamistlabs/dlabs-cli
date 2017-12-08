@@ -1,14 +1,14 @@
 {
-  "name": "npm-jumpstarter",
+  "name": "npm-quickstart-cli",
   "version": "0.0.1",
   "description": "",
-  "main": "/bin/jumpstarter-cli.js",
+  "main": "/bin/npm-quickstart-cli.js",
   "bin": {
-    "npm-jumpstarter": "./bin/jumpstarter-cli.js"
+    "npmqs": "./bin/npm-quickstart-cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/heyitsjhu/npm-jumpstarter.git"
+    "url": "git+https://github.com/heyitsjhu/npm-quickstart-cli.git"
   },
   "scripts": {
     "compile": "babel src --out-dir lib --source-maps inline",
@@ -16,10 +16,10 @@
     "watch": "babel src --out-dir lib -w"
   },
   "bugs": {
-    "url": "https://github.com/heyitsjhu/npm-jumpstarter/issues"
+    "url": "https://github.com/heyitsjhu/npm-quickstart-cli/issues"
   },
   "author": "Johnny Hu <heyitsjhu@gmailcom>",
-  "homepage": "https://github.com/heyitsjhu/npm-jumpstarter#readme",
+  "homepage": "https://github.com/heyitsjhu/npm-quickstart-cli#readme",
   "license": "MIT",
   "keywords": [
     "npm",

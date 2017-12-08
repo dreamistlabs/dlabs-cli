@@ -1,1 +1,1 @@
-# npm-jumpstarter
+# npm-quickstart
