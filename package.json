@@ -11,9 +11,9 @@
     "url": "git+https://github.com/heyitsjhu/npm-quickstart-cli.git"
   },
   "scripts": {
-    "compile": "babel src --out-dir lib --source-maps inline",
+    "compile": "babel src -d dist -s inline",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "babel src --out-dir lib -w"
+    "watch": "babel src -d dist -w"
   },
   "bugs": {
     "url": "https://github.com/heyitsjhu/npm-quickstart-cli/issues"
