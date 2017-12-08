@@ -1,14 +1,14 @@
 {
-  "name": "npm-quickstart-cli",
+  "name": "npmqs-cli",
   "version": "0.0.1",
   "description": "",
-  "main": "/bin/npm-quickstart-cli.js",
+  "main": "/bin/npmqs-cli.js",
   "bin": {
-    "npmqs": "./bin/npm-quickstart-cli.js"
+    "npmqs": "./bin/npmqs-cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/heyitsjhu/npm-quickstart-cli.git"
+    "url": "git+https://github.com/heyitsjhu/npmqs-cli.git"
   },
   "scripts": {
     "compile": "babel src -d dist -s inline",
@@ -16,10 +16,10 @@
     "watch": "babel src -d dist -w"
   },
   "bugs": {
-    "url": "https://github.com/heyitsjhu/npm-quickstart-cli/issues"
+    "url": "https://github.com/heyitsjhu/npmqs-cli/issues"
   },
   "author": "Johnny Hu <heyitsjhu@gmailcom>",
-  "homepage": "https://github.com/heyitsjhu/npm-quickstart-cli#readme",
+  "homepage": "https://github.com/heyitsjhu/npmqs-cli#readme",
   "license": "MIT",
   "keywords": [
     "npm",
