@@ -2,7 +2,6 @@
   "name": "npm-jumpstarter",
   "version": "0.0.1",
   "description": "",
-  "author": "Johnny Hu <heyitsjhu@gmailcom>",
   "main": "/bin/jumpstarter-cli.js",
   "bin": {
     "npm-jumpstarter": "./bin/jumpstarter-cli.js"
@@ -11,17 +10,15 @@
     "type": "git",
     "url": "git+https://github.com/heyitsjhu/npm-jumpstarter.git"
   },
-  "dependencies": {
-    "commander": "^2.11.0",
-    "node-jq": "^0.7.0",
-    "shelljs": "^0.7.8"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "babel src --out-dir lib --source-maps inline",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "babel src --out-dir lib -w"
   },
   "bugs": {
     "url": "https://github.com/heyitsjhu/npm-jumpstarter/issues"
   },
+  "author": "Johnny Hu <heyitsjhu@gmailcom>",
   "homepage": "https://github.com/heyitsjhu/npm-jumpstarter#readme",
   "license": "MIT",
   "keywords": [
@@ -31,5 +28,16 @@
     "starter",
     "kit",
     "cli"
-  ]
+  ],
+  "dependencies": {
+    "babel-polyfill": "^6.26.0",
+    "commander": "^2.11.0",
+    "shelljs": "^0.7.8"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "file-exists": "^5.0.0"
+  }
 }
