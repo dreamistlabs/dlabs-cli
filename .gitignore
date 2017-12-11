@@ -59,4 +59,4 @@ typings/
 
 # production files
 dist/
-lib/
+/lib/
