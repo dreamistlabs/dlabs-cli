@@ -1,10 +1,16 @@
 'use strict';
 
+/**
+ * helper libraries 
+ */
 const shell = require('shelljs');
 const child_process = require('child_process');
 const fs = require('fs');
 const fileExists = require('file-exists');
 const replace = require('replace-in-file');
+
+const BabelInstaller = require('./installers/BabelInstaller');
+const MochaInstaller = require('./installers/MochaInstaller');
 const PACKAGE_JSON = 'package.json';
 let json;
 
@@ -36,8 +42,6 @@ const _createNewPackage = async (directory) => {
 
   });
 
-  // _installDependencies();
-
   setTimeout(() => {
     //copy template test file based on test framework
     shell.cp('-R', PATH + '/files/mocha-chai.test.js', 'test/');
@@ -50,68 +54,46 @@ const _createNewPackage = async (directory) => {
       from: /placeholder/g,
       to: json.name
     })
+
+    new BabelInstaller(PATH, null);
+
+    _installTestFramework();
+
   }, 1500);  
 
 };
 
 const _createPackageJson = () => {
+
   child_process.execSync('npm init', { stdio: 'inherit' });
+
 };
 
 // need to document the file structure here
 const _setupFileStructure = () => {
-  const MAIN = `src/index.js`;
   const LIB_MAIN = `src/lib/${json.name}.js`;
 
   shell.exec('mkdir src && mkdir src/lib');
-  shell.exec(`touch ${MAIN} && touch ${LIB_MAIN}`);
+  shell.exec(`touch ${LIB_MAIN}`);
   shell.mkdir('test');
 
 };
 
-const _installDependencies = () => {
-  _installTestFramework();
-  _installBabel(_createBabelrc);
-}
-
-function _installTestFramework(framework = "mocha") {
+function _installTestFramework(framework = 'mocha') {
 
   switch (framework) {
-    case "mocha":
-      shell.echo("ordering mocha and chai... ☕️ ");
-      shell.exec("sleep 2 && npm install -D chai mocha");
+    case 'mocha':
+      new MochaInstaller();
   }
 }
 
 function writeScripts(json) {
-  json.scripts.test = "mocha --reporter spec";
+  json.scripts.test = 'mocha --reporter spec';
 
-  json.scripts.compile = "babel src -d lib -s inline";
+  json.scripts.compile = 'babel src -d lib -s inline';
 
-  json.scripts.watch = "babel src -d lib -w";
+  json.scripts.watch = 'babel src -d lib -w';
 }
-
-function _installBabel(callback) {
-  // const content = `[\n  "presets": ["env"]\n]`;
-
-  shell.echo("fetching babel... 🗣");
-
-  shell.exec("sleep 2 && npm install -D babel-cli babel-preset-env");
-
-  shell.exec('npm install --save babel-polyfill');
-
-  // fs.writeFile(".babelrc", content, err => {
-  //   if (err) throw err;
-  // });
-
-  callback();
-}
-
-const _createBabelrc = (PATH) => {
-  const FILE = PATH + '/files/.babelrc';
-  shell.cp('-R', FILE, '.');
-}
-
 
 function _pointMainEntryFileToDistributionFolder(json) {
 
