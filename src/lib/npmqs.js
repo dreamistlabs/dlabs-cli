@@ -1,7 +1,5 @@
-'use strict';
-
 /**
- * helper libraries 
+ * helper libraries
  */
 const shell = require('shelljs');
 const child_process = require('child_process');
@@ -9,102 +7,127 @@ const fs = require('fs');
 const fileExists = require('file-exists');
 const replace = require('replace-in-file');
 
-const BabelInstaller = require('./installers/BabelInstaller');
-const MochaInstaller = require('./installers/MochaInstaller');
-const PACKAGE_JSON = 'package.json';
-let json;
+module.exports = class ModuleMaker {
+  constructor(directory) {
+    this.directory = directory;
+    this.PACKAGE_JSON = 'package.json';
+    this.PATH = this.setPathLocation();
+    this.json = {};
+  }
 
-const _createNewPackage = async (directory) => {
+  initialize() {
+    shell.exec('echo Preparing npm quickstart process... && sleep 1');
+    shell.mkdir(this.directory);
+    shell.cd(this.directory);
 
-  // LOCATION finds the user's root folder where npmqs is installed.
-  // PATH adds the filepath to npmqs-cli's module files.
-	const LOCATION = shell.exec('which npmqs', {silent: true})
-											  .stdout
-											  .trim()
-											  .replace(/(\/\w+){2}$/, '');
-  const PATH = LOCATION + '/lib/node_modules/npmqs-cli';   // console.log(LOCATION, PATH);
+    this.createPackageJson()
+        .convertJson()
+        .setupFileStructure()
+        .copyFiles()
+        .updateJson()
+        .rewriteJson()
+        .installDependencies();
+  }
 
-  shell.exec('echo Preparing npm package starter process... && sleep 2');
-  shell.mkdir(directory);
-  shell.cd(directory);
+  // check for existing package.json file, running npm init if one doesn't exist.
+  createPackageJson() {
+    let fileExist = fileExists.sync(this.PACKAGE_JSON);
+    if (!fileExist) child_process.execSync('npm init', { stdio: 'inherit' });
+    return this;
+  }
 
-  let fileExist = await fileExists(PACKAGE_JSON);
+  copyFiles() {
+    const FILEPATH = this.PATH + '/files/';
 
-  if (!fileExist) _createPackageJson();
-
-  fs.readFile(PACKAGE_JSON, 'utf-8', async (err, data) => {
-    
-    if (err) throw err;
-
-    json = await JSON.parse(data);
-
-    _setupFileStructure();
-
-  });
-
-  setTimeout(() => {
-    //copy template test file based on test framework
-    shell.cp('-R', PATH + '/files/mocha-chai.test.js', 'test/');
-    fs.renameSync('test/mocha-chai.test.js', 'test/'+json.name+'.test.js');
-
-    //copy template index file and rename it based on project name
-    shell.cp('-R', PATH + '/files/index.js', 'src/');
+    // copy template index file and rename code within it to match project name.
+    shell.cp('-R', FILEPATH + 'index.js', 'src/');
     replace({
       files: 'src/index.js',
       from: /placeholder/g,
-      to: json.name
-    })
+      to: this.json.name
+    });
 
-    new BabelInstaller(PATH, null);
+    // copy template test file and rename it to match project name.
+    shell.cp('-R', FILEPATH + 'mocha-chai.test.js', 'test/');
+    fs.renameSync('test/mocha-chai.test.js', 'test/'+this.json.name+'.test.js');
 
-    _installTestFramework();
+    shell.cp('-R', [FILEPATH + '.babelrc', FILEPATH + '.gitignore', FILEPATH + '.npmignore', FILEPATH + 'CHANGELOG.md'], '.');
 
-  }, 1500);  
-
-};
-
-const _createPackageJson = () => {
-
-  child_process.execSync('npm init', { stdio: 'inherit' });
-
-};
-
-// need to document the file structure here
-const _setupFileStructure = () => {
-  const LIB_MAIN = `src/lib/${json.name}.js`;
-
-  shell.exec('mkdir src && mkdir src/lib');
-  shell.exec(`touch ${LIB_MAIN}`);
-  shell.mkdir('test');
-
-};
-
-function _installTestFramework(framework = 'mocha') {
-
-  switch (framework) {
-    case 'mocha':
-      new MochaInstaller();
+    return this;
   }
+
+  installDependencies() {
+    shell.echo("Hang tight! You're almost done. Just need to install some dependencies...");
+    shell.exec("npm install");
+    shell.echo('All done! Happy coding!');
+  }
+
+  convertJson() {
+    this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));
+    return this;
+  }
+
+  /** file structure
+   *  |-- root <project-name>
+   *  |   |-- bin  (cli)
+   *  |   |-- dist (distribution files, usually minified browser-ready files)
+   *  |   |-- lib  (production files)
+   *  |   |-- src
+   *  |   |   |-- libs
+   *  |   |   |   |-- <project-name>.js
+   *  |   |   |-- index.js
+   *  |   |-- test
+   *  |   |   |-- <project-name>.test.js
+   *  |   |-- .babelrc
+   *  |   |-- .gitignore
+   *  |   |-- .npmignore
+   *  |   |-- package.json
+   *  |   |-- README.md
+   */
+  setupFileStructure() {
+    const LIB_MAIN = `src/lib/${this.json.name}.js`;
+    // create src/, src/libs and test folders
+    shell.exec('mkdir -p src/lib && mkdir test');
+    shell.exec(`touch ${LIB_MAIN}`);
+    return this;
+  }
+
+  setPathLocation() {
+    // LOCATION finds the user's root folder where npmqs is installed.
+    // PATH adds the filepath to npmqs-cli's module files.
+    const npmqsLocation = shell.exec('which npmqs', {silent: true})
+                               .stdout
+                               .trim()
+                               .replace(/(\/\w+){2}$/, '');
+    return npmqsLocation + '/lib/node_modules/npmqs-cli';
+  }
+
+  updateJson() {
+    this.json.main = './src/index.js';
+    this.json.scripts = {
+      "compile": "babel src -d prod -s inline",
+      "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --require babel-register -R spec test/*",
+      "prepublishOnly": "npm run compile",
+      "test": "mocha --require babel-register --reporter spec",
+      "watch": "babel src -d prod -w"
+    }
+    this.json.devDependencies = {
+      "babel-cli": "^6.24.1",
+      "babel-polyfill": "^6.26.0",
+      "babel-preset-env": "^1.6.1",
+      "babel-register": "^6.26.0",
+      "chai": "^4.0.2",
+      "coveralls": "^2.13.1",
+      "istanbul": "^0.4.5",
+      "mocha": "^3.4.2"
+    }
+    return this;
+  }
+
+
+  rewriteJson() {
+    fs.writeFileSync(this.PACKAGE_JSON, JSON.stringify(this.json, null, 2));
+    return this;
+  }
+
 }
-
-function writeScripts(json) {
-  json.scripts.test = 'mocha --reporter spec';
-
-  json.scripts.compile = 'babel src -d lib -s inline';
-
-  json.scripts.watch = 'babel src -d lib -w';
-}
-
-function _pointMainEntryFileToDistributionFolder(json) {
-
-  json.main = 'index.js';
-
-}
-
-function rewriteJson() {
-  // fs.writeFile(fileName, JSON.stringify(json, null, 2), function(err) {
-  //   //   if (err) return console.log(err);
-  //   // })
-}
-
-module.exports = _createNewPackage;

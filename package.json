@@ -11,9 +11,10 @@
     "url": "git+https://github.com/heyitsjhu/npmqs-cli.git"
   },
   "scripts": {
-    "compile": "babel src -d dist -s inline",
+    "compile": "babel src -d prod -s inline",
+    "prepublishOnly": "npm run compile",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "babel src -d dist -w"
+    "watch": "babel src -d prod -w"
   },
   "bugs": {
     "url": "https://github.com/heyitsjhu/npmqs-cli/issues"
@@ -39,6 +40,7 @@
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.0",
     "babel-preset-env": "^1.6.1",
+    "babel-register": "^6.26.0",
     "file-exists": "^5.0.0"
   }
 }

@@ -1,15 +1,13 @@
-'use strict';
-
 const program = require('commander');
 const VERSION = require('../package.json')['version'];
-const createNewPackage = require('./lib/npmqs');
+const ModuleMaker = require('./lib/npmqs');
 
 program
   .version(VERSION)
   .usage('<directory name> [options]')
   .arguments('<dir>')
   .action((dir) => {
-    createNewPackage(dir);
+    new ModuleMaker(dir).initialize();
   });
 
 program.parse(process.argv);

@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
 require('babel-polyfill');
-require('../dist/index');
+require('../prod/index');
