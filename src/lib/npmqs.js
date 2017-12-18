@@ -37,10 +37,13 @@ module.exports = class ModuleMaker {
   }
 
   copyFiles() {
-    const FILEPATH = this.PATH + '/files/';
+    const FILEPATH = this.PATH + '/files';
+
+    shell.cp('-R', `${FILEPATH}/lib-main.js`, './src/lib/');
+    fs.renameSync('src/lib/lib-main.js', `src/lib/${this.json.name}.js`);
 
     // copy template index file and rename code within it to match project name.
-    shell.cp('-R', FILEPATH + 'index.js', 'src/');
+    shell.cp('-R', `${FILEPATH}/index.js`, 'src/');
     replace({
       files: 'src/index.js',
       from: /placeholder/g,
@@ -48,10 +51,10 @@ module.exports = class ModuleMaker {
     });
 
     // copy template test file and rename it to match project name.
-    shell.cp('-R', FILEPATH + 'mocha-chai.test.js', 'test/');
+    shell.cp('-R', `${FILEPATH}/mocha-chai.test.js`, 'test/');
     fs.renameSync('test/mocha-chai.test.js', 'test/'+this.json.name+'.test.js');
 
-    shell.cp('-R', [FILEPATH + '.babelrc', FILEPATH + '.gitignore', FILEPATH + '.npmignore', FILEPATH + 'CHANGELOG.md'], '.');
+    shell.cp('-R', [`${FILEPATH}/.babelrc`, `${FILEPATH}/.gitignore`, `${FILEPATH}/.npmignore`, `${FILEPATH}/CHANGELOG.md`], '.');
 
     return this;
   }
@@ -85,10 +88,7 @@ module.exports = class ModuleMaker {
    *  |   |-- README.md
    */
   setupFileStructure() {
-    const LIB_MAIN = `src/lib/${this.json.name}.js`;
-    // create src/, src/libs and test folders
     shell.exec('mkdir -p src/lib && mkdir test');
-    shell.exec(`touch ${LIB_MAIN}`);
     return this;
   }
 

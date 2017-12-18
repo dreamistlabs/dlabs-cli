@@ -1,4 +1,3 @@
-'use strict';
+import rockstar from './lib/placeholder.js';
 
-// require('./lib/placeholder.js');
-// const module = require('./lib/placeholder.js');
+export { rockstar };
