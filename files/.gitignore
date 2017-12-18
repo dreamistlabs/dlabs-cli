@@ -61,6 +61,5 @@ typings/
 .env
 
 # Production folder
+/build/
 /dist/
-/lib/
-/prod/

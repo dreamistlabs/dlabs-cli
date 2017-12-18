@@ -105,11 +105,11 @@ module.exports = class ModuleMaker {
   updateJson() {
     this.json.main = './src/index.js';
     this.json.scripts = {
-      "compile": "babel src -d prod -s inline",
+      "compile": "babel src -d build -s inline",
       "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --require babel-register -R spec test/*",
       "prepublishOnly": "npm run compile",
       "test": "mocha --require babel-register --reporter spec",
-      "watch": "babel src -d prod -w"
+      "watch": "babel src -d build -w"
     }
     this.json.devDependencies = {
       "babel-cli": "^6.24.1",
