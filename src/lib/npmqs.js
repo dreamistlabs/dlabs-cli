@@ -23,10 +23,18 @@ module.exports = class ModuleMaker {
     this.createPackageJson()
         .convertJson()
         .setupFileStructure()
+        .addReadme()
         .copyFiles()
         .updateJson()
         .rewriteJson()
         .installDependencies();
+  }
+
+  addReadme() {
+    const README = 'README.md';
+    shell.touch(README);
+    fs.writeFileSync(README, `# ${this.json.name}`);
+    return this;
   }
 
   // check for existing package.json file, running npm init if one doesn't exist.
@@ -39,10 +47,7 @@ module.exports = class ModuleMaker {
   copyFiles() {
     const FILEPATH = this.PATH + '/files';
 
-    shell.cp('-R', `${FILEPATH}/lib-main.js`, './src/lib/');
-    fs.renameSync('src/lib/lib-main.js', `src/lib/${this.json.name}.js`);
-
-    // copy template index file and rename code within it to match project name.
+    // copy boilerplate index file and rename code within it to match project name.
     shell.cp('-R', `${FILEPATH}/index.js`, 'src/');
     replace({
       files: 'src/index.js',
@@ -50,10 +55,15 @@ module.exports = class ModuleMaker {
       to: this.json.name
     });
 
-    // copy template test file and rename it to match project name.
+    // copy boilerplate lib file and rename it to match project name.
+    shell.cp('-R', `${FILEPATH}/lib-main.js`, './src/lib/');
+    fs.renameSync('src/lib/lib-main.js', `src/lib/${this.json.name}.js`);
+
+    // copy boilerplate test file and rename it to match project name.
     shell.cp('-R', `${FILEPATH}/mocha-chai.test.js`, 'test/');
     fs.renameSync('test/mocha-chai.test.js', 'test/'+this.json.name+'.test.js');
 
+    // copy remaining files that don't require any modifications
     shell.cp('-R', [`${FILEPATH}/.babelrc`, `${FILEPATH}/.gitignore`, `${FILEPATH}/.npmignore`, `${FILEPATH}/CHANGELOG.md`], '.');
 
     return this;
