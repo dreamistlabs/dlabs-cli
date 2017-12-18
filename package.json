@@ -11,10 +11,10 @@
     "url": "git+https://github.com/heyitsjhu/npmqs-cli.git"
   },
   "scripts": {
-    "compile": "babel src -d prod -s inline",
+    "compile": "babel src -d build -s inline",
     "prepublishOnly": "npm run compile",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "babel src -d prod -w"
+    "watch": "babel src -d build -w"
   },
   "bugs": {
     "url": "https://github.com/heyitsjhu/npmqs-cli/issues"

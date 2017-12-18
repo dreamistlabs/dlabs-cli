@@ -61,6 +61,5 @@ typings/
 .DS_Store
 
 # production files
+/build/
 /dist/
-/lib/
-/prod/
