@@ -55,7 +55,7 @@ module.exports = class ModuleMaker {
     });
 
     // copy webpack configuration file
-    shell.cp('-R', `${FILEPATH}/webpack.config.js`, '/');
+    shell.cp('-R', `${FILEPATH}/webpack.config.js`, '.');
     replace({
       files: 'webpack.config.js',
       from: /placeholder/g,
@@ -129,7 +129,7 @@ module.exports = class ModuleMaker {
       "babel-register": "^6.26.0",
       "chai": "^4.0.2",
       "coveralls": "^2.13.1",
-      "istanbul": "^0.4.5",
+      "istanbul": "^1.0.0-alpha",
       "mocha": "^3.4.2",
       "webpack": "^3.10.0"
     }
