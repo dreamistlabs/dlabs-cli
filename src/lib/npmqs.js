@@ -27,7 +27,6 @@ module.exports = class ModuleMaker {
         .copyFiles()
         .updateJson()
         .rewriteJson()
-        .installDependencies();
   }
 
   addReadme() {
