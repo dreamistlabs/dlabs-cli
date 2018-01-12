@@ -54,6 +54,14 @@ module.exports = class ModuleMaker {
       to: this.json.name
     });
 
+    // copy webpack configuration file
+    shell.cp('-R', `${FILEPATH}/webpack.config.js`, '/');
+    replace({
+      files: 'webpack.config.js',
+      from: /placeholder/g,
+      to: this.json.name
+    });
+
     // copy boilerplate lib file and rename it to match project name.
     shell.cp('-R', `${FILEPATH}/lib-main.js`, './src/lib/');
     fs.renameSync('src/lib/lib-main.js', `src/lib/${this.json.name}.js`);
@@ -66,12 +74,6 @@ module.exports = class ModuleMaker {
     shell.cp('-R', [`${FILEPATH}/.babelrc`, `${FILEPATH}/.gitignore`, `${FILEPATH}/.npmignore`, `${FILEPATH}/CHANGELOG.md`], '.');
 
     return this;
-  }
-
-  installDependencies() {
-    shell.echo("Hang tight! You're almost done. Just need to install some dependencies...");
-    shell.exec("npm install");
-    shell.echo('All done! Happy coding!');
   }
 
   convertJson() {
@@ -95,6 +97,7 @@ module.exports = class ModuleMaker {
    *  |   |-- .npmignore
    *  |   |-- package.json
    *  |   |-- README.md
+   *  |   |-- webpack.config.js
    */
   setupFileStructure() {
     shell.exec('mkdir -p src/lib && mkdir test');
@@ -114,21 +117,21 @@ module.exports = class ModuleMaker {
   updateJson() {
     this.json.main = './src/index.js';
     this.json.scripts = {
-      "compile": "babel src -d build -s inline",
+      "build": "webpack",
       "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --require babel-register -R spec test/*",
-      "prepublishOnly": "npm run compile",
-      "test": "mocha --require babel-register --reporter spec",
-      "watch": "babel src -d build -w"
+      "prepublishOnly": "npm run build",
+      "test": "mocha -R spec test/* --require babel-register"
     }
     this.json.devDependencies = {
-      "babel-cli": "^6.24.1",
-      "babel-polyfill": "^6.26.0",
+      "babel-core": "^6.26.0",
+      "babel-loader": "^7.1.2",
       "babel-preset-env": "^1.6.1",
       "babel-register": "^6.26.0",
       "chai": "^4.0.2",
       "coveralls": "^2.13.1",
       "istanbul": "^0.4.5",
-      "mocha": "^3.4.2"
+      "mocha": "^3.4.2",
+      "webpack": "^3.10.0"
     }
     return this;
   }
