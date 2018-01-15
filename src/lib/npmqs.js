@@ -118,7 +118,7 @@ module.exports = class ModuleMaker {
     this.json.main = './src/index.js';
     this.json.scripts = {
       "build": "webpack",
-      "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --require babel-register -R spec test/*",
+      "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register",
       "prepublishOnly": "npm run build",
       "test": "mocha -R spec test/* --require babel-register"
     }
