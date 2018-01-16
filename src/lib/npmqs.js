@@ -7,33 +7,46 @@ const fs = require('fs');
 const fileExists = require('file-exists');
 const replace = require('replace-in-file');
 
+/** file structure
+ *  |-- root <project-name>
+ *  |   |-- bin (cli)
+ *  |   |-- dist
+ *  |   |-- src
+ *  |   |   |-- <project-name>.js
+ *  |   |-- test
+ *  |   |   |-- <project-name>.test.js
+ *  |   |-- .babelrc
+ *  |   |-- .gitignore
+ *  |   |-- .istanbul.yml
+ *  |   |-- .npmignore
+ *  |   |-- .travis.yml
+ *  |   |-- CHANGELOG.md
+ *  |   |-- package.json
+ *  |   |-- README.md
+ *  |   |-- webpack.config.js
+ */
+
 module.exports = class ModuleMaker {
+
   constructor(directory) {
-    this.directory = directory;
-    this.PACKAGE_JSON = 'package.json';
-    this.PATH = this.setPathLocation();
+    this.directory = directory,
+    this.PACKAGE_JSON = 'package.json',
+    this.PATH = this.setPathLocation(),
     this.json = {};
+
+    this.initialize();
   }
 
   initialize() {
-    shell.exec('echo Preparing npm quickstart process... && sleep 1');
+    shell.exec('echo Starting npmqs process... && sleep 1');
     shell.mkdir(this.directory);
     shell.cd(this.directory);
 
     this.createPackageJson()
-        .convertJson()
-        .setupFileStructure()
-        .addReadme()
-        .copyFiles()
-        .updateJson()
-        .rewriteJson()
-  }
-
-  addReadme() {
-    const README = 'README.md';
-    shell.touch(README);
-    fs.writeFileSync(README, `# ${this.json.name}`);
-    return this;
+        .parsePackageJson()
+        .migrateFiles()
+        .updatePackageJson()
+        .rewritePackageJson()
   }
 
   // check for existing package.json file, running npm init if one doesn't exist.
@@ -43,79 +56,43 @@ module.exports = class ModuleMaker {
     return this;
   }
 
-  copyFiles() {
-    const FILEPATH = this.PATH + '/files';
-
-    // copy boilerplate index file and rename code within it to match project name.
-    shell.cp('-R', `${FILEPATH}/index.js`, 'src/');
-    replace({
-      files: 'src/index.js',
-      from: /placeholder/g,
-      to: this.json.name
-    });
-
-    // copy webpack configuration file
-    shell.cp('-R', `${FILEPATH}/webpack.config.js`, '.');
-    replace({
-      files: 'webpack.config.js',
-      from: /placeholder/g,
-      to: this.json.name
-    });
-
-    // copy boilerplate lib file and rename it to match project name.
-    shell.cp('-R', `${FILEPATH}/lib-main.js`, './src/lib/');
-    fs.renameSync('src/lib/lib-main.js', `src/lib/${this.json.name}.js`);
-
-    // copy boilerplate test file and rename it to match project name.
-    shell.cp('-R', `${FILEPATH}/mocha-chai.test.js`, 'test/');
-    fs.renameSync('test/mocha-chai.test.js', 'test/'+this.json.name+'.test.js');
-
-    // copy remaining files that don't require any modifications
-    shell.cp('-R', [`${FILEPATH}/.babelrc`, `${FILEPATH}/.gitignore`, `${FILEPATH}/.npmignore`, `${FILEPATH}/CHANGELOG.md`], '.');
-
-    return this;
-  }
-
-  convertJson() {
+  parsePackageJson() {
     this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));
     return this;
   }
 
-  /** file structure
-   *  |-- root <project-name>
-   *  |   |-- bin  (cli)
-   *  |   |-- dist (distribution files, usually minified browser-ready files)
-   *  |   |-- lib  (production files)
-   *  |   |-- src
-   *  |   |   |-- libs
-   *  |   |   |   |-- <project-name>.js
-   *  |   |   |-- index.js
-   *  |   |-- test
-   *  |   |   |-- <project-name>.test.js
-   *  |   |-- .babelrc
-   *  |   |-- .gitignore
-   *  |   |-- .npmignore
-   *  |   |-- package.json
-   *  |   |-- README.md
-   *  |   |-- webpack.config.js
-   */
-  setupFileStructure() {
-    shell.exec('mkdir -p src/lib && mkdir test');
+  migrateFiles() {
+    const FILEPATH = `${this.PATH}/files`;
+    shell.cp('-R', [`${FILEPATH}/*`, `${FILEPATH}/.*`], '.');
+
+    fs.renameSync('src/index.js', `src/${this.json.name}.js`);
+
+    fs.renameSync('test/mocha-chai.test.js', 'test/'+this.json.name+'.test.js');
+
+    replace({
+      files: [
+        'README.md',
+        'webpack.config.js',
+        `test/${this.json.name}.test.js`
+      ],
+      from: /placeholder/g,
+      to: this.json.name
+    });
+
     return this;
   }
 
+  // LOCATION finds the user's root folder where npmqs is installed.
+  // PATH adds the filepath to npmqs-cli's module files.
   setPathLocation() {
-    // LOCATION finds the user's root folder where npmqs is installed.
-    // PATH adds the filepath to npmqs-cli's module files.
-    const npmqsLocation = shell.exec('which npmqs', {silent: true})
-                               .stdout
-                               .trim()
+    const npmqsLocation = shell.exec('which npmqs', { silent: true })
+                               .stdout.trim()
                                .replace(/(\/\w+){2}$/, '');
-    return npmqsLocation + '/lib/node_modules/npmqs-cli';
+    return `${npmqsLocation}/lib/node_modules/npmqs-cli`;
   }
 
-  updateJson() {
-    this.json.main = './src/index.js';
+  updatePackageJson() {
+    this.json.main = `./src/${this.json.name}.js`;
     this.json.scripts = {
       "build": "webpack",
       "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register",
@@ -137,7 +114,7 @@ module.exports = class ModuleMaker {
   }
 
 
-  rewriteJson() {
+  rewritePackageJson() {
     fs.writeFileSync(this.PACKAGE_JSON, JSON.stringify(this.json, null, 2));
     return this;
   }

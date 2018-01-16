@@ -2,12 +2,12 @@ const path = require('path');
 const webpack = require('webpack');
 
 module.exports = {
-  entry: './src/index.js',
+  entry: './src/placeholder.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'placeholder.min.js',
     libraryTarget: 'umd',
-    library: 'placeholder'
+    library: throw new Error("Don't forget to set your library name!")
   },
   module: {
     rules: [

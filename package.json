@@ -28,7 +28,9 @@
     "package",
     "starter",
     "kit",
-    "cli"
+    "cli",
+    "npmqs",
+    "quickstart"
   ],
   "dependencies": {
     "babel-polyfill": "^6.26.0",

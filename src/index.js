@@ -9,7 +9,7 @@ program
   .usage('<directory name> [options]')
   .arguments('<dir>')
   .action(function (dir) {
-    new ModuleMaker(dir).initialize();
+    new ModuleMaker(dir);
 });
 
 program.parse(process.argv);
