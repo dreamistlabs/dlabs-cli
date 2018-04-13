@@ -63,11 +63,16 @@ module.exports = class ModuleMaker {
 
   migrateFiles() {
     const FILEPATH = `${this.PATH}/files`;
-    shell.cp('-R', [`${FILEPATH}/*`, `${FILEPATH}/.*`], '.');
+    let coreFiles = [`${FILEPATH}/*`, `${FILEPATH}/.*`]; 
+    let ciFiles = [`${FILEPATH}/ci/.*`];
+    let webpackFiles = [`${FILEPATH}/webpack/*`];
+    
+    shell.cp('-R', coreFiles, '.');
+    shell.cp('-R', ciFiles, '.');
+    shell.cp('-R', webpackFiles, '.');
 
     fs.renameSync('src/index.js', `src/${this.json.name}.js`);
-
-    fs.renameSync('test/mocha-chai.test.js', 'test/'+this.json.name+'.test.js');
+    fs.renameSync('test/mocha-chai.test.js', `test/${this.json.name}.test.js`);
 
     replace({
       files: [
@@ -112,7 +117,6 @@ module.exports = class ModuleMaker {
     }
     return this;
   }
-
 
   rewritePackageJson() {
     fs.writeFileSync(this.PACKAGE_JSON, JSON.stringify(this.json, null, 2));
