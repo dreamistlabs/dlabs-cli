@@ -9,3 +9,6 @@ node_modules/
 
 # Continuous integration config
 .travis.yml
+
+# apple ds store file
+.DS_Store

@@ -28,64 +28,71 @@ const replace = require('replace-in-file');
 
 module.exports = class ModuleMaker {
 
-  constructor(directory) {
-    this.directory = directory,
-    this.PACKAGE_JSON = 'package.json',
-    this.PATH = this.setPathLocation(),
-    this.json = {};
+  constructor(directory, command) {
+    this.directory = directory
+  , this.command = command
+  , this.PACKAGE_JSON = 'package.json'
+  , this.PATH = this.setPathLocation()
+  , this.json = {};
 
-    this.initialize();
+    this.run();
   }
 
-  initialize() {
+  run() {
     shell.exec('echo Starting npmqs process... && sleep 1');
     shell.mkdir(this.directory);
     shell.cd(this.directory);
 
-    this.createPackageJson()
-        .parsePackageJson()
-        .migrateFiles()
-        .updatePackageJson()
+    this.setupPackageJson()
+        .setupFiles('core')
+        .setupFiles('ci')
+        .setupFiles('test')
+        .setupFiles('webpack')
         .rewritePackageJson()
   }
 
+  /*!
+   * 
+   */
   // check for existing package.json file, running npm init if one doesn't exist.
-  createPackageJson() {
+  setupPackageJson() {
     let fileExist = fileExists.sync(this.PACKAGE_JSON);
-    if (!fileExist) child_process.execSync('npm init', { stdio: 'inherit' });
+    if (!fileExist) {
+      child_process.execSync('npm init', { stdio: 'inherit' });
+      fileExist = fileExists.sync(this.PACKAGE_JSON);
+    }
+
+    if (fileExist) {
+      this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));  
+    } else {
+      throw Error('You need to initialize a package.json file in order to run npmqs. Please try again');
+    }
     return this;
   }
 
-  parsePackageJson() {
-    this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));
-    return this;
-  }
-
-  migrateFiles() {
+  setupFiles(category) {
     const FILEPATH = `${this.PATH}/files`;
-    let coreFiles = [`${FILEPATH}/*`, `${FILEPATH}/.*`]; 
-    let ciFiles = [`${FILEPATH}/ci/.*`];
-    let webpackFiles = [`${FILEPATH}/webpack/*`];
-    
-    shell.cp('-R', coreFiles, '.');
-    shell.cp('-R', ciFiles, '.');
-    shell.cp('-R', webpackFiles, '.');
-
-    fs.renameSync('src/index.js', `src/${this.json.name}.js`);
-    fs.renameSync('test/mocha-chai.test.js', `test/${this.json.name}.test.js`);
-
-    replace({
-      files: [
-        'README.md',
-        'webpack.config.js',
-        `test/${this.json.name}.test.js`
-      ],
-      from: /placeholder/g,
-      to: this.json.name
-    });
+    switch (category) {
+      case 'core':
+        this.setupCoreFiles(FILEPATH);
+        break;
+      case 'ci':
+        this.setupContinuousIntegration(FILEPATH);
+        break;
+      case 'test':
+        this.setupTestFiles(FILEPATH);
+        break;
+      case 'webpack':
+        this.setupWebpack(FILEPATH);
+        break;
+      default:
+        break;
+    }
 
     return this;
   }
+
+
 
   // LOCATION finds the user's root folder where npmqs is installed.
   // PATH adds the filepath to npmqs-cli's module files.
@@ -96,26 +103,81 @@ module.exports = class ModuleMaker {
     return `${npmqsLocation}/lib/node_modules/npmqs-cli`;
   }
 
-  updatePackageJson() {
-    this.json.main = `./src/${this.json.name}.js`;
-    this.json.scripts = {
-      "build": "webpack",
-      "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register",
-      "prepublishOnly": "npm run build",
-      "test": "mocha -R spec test/* --require babel-register"
-    }
-    this.json.devDependencies = {
+  setupCoreFiles(path) {
+    let coreFiles = [`${path}/core/*`, `${path}/.*`]; 
+    shell.cp('-R', coreFiles, '.');
+    fs.renameSync('src/index.js', `src/${this.json.name}.js`);
+    replace({
+      files: ['README.md',],
+      from: /placeholder/g,
+      to: this.json.name
+    });
+    this.updatePackageFile('devDependencies', {
       "babel-core": "^6.26.0",
-      "babel-loader": "^7.1.2",
-      "babel-preset-env": "^1.6.1",
+      "babel-preset-env": "^1.6.1"
+    });
+    this.updatePackageFile('main',`./src/${this.json.name}.js`);
+  }
+  setupContinuousIntegration(path) {
+    let ciFiles = [`${path}/ci/.*`];
+    shell.cp('-R', ciFiles, '.');
+    this.updatePackageFile('devDependencies', {
+      coveralls: "^2.13.1",
+      istanbul: "^1.0.0-alpha"
+    });
+    this.updatePackageFile('scripts', {
+      cover: "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register",
+    });
+  }
+
+  setupTestFiles(path) {
+    let testFiles = [`${path}/test/*`];
+    if (!shell.test('-d', 'test')) {
+      shell.mkdir('test');
+    };
+    shell.cp('-R', testFiles, 'test');
+    replace({
+      files: [`test/${this.json.name}.test.js`],
+      from: /placeholder/g,
+      to: this.json.name
+    });
+    this.updatePackageFile('devDependencies', {
       "babel-register": "^6.26.0",
-      "chai": "^4.0.2",
-      "coveralls": "^2.13.1",
-      "istanbul": "^1.0.0-alpha",
-      "mocha": "^3.4.2",
-      "webpack": "^3.10.0"
+      chai: "^4.0.2",
+      mocha: "^3.4.2"
+    });
+    this.updatePackageFile('scripts', {
+      test: "mocha -R spec test/* --require babel-register"
+    });
+  }
+
+  setupWebpack(path) {
+    let webpackFiles = [`${path}/webpack/*`];
+    shell.cp('-R', webpackFiles, '.');
+    replace({
+      files: ['webpack.config.js'],
+      from: /placeholder/g,
+      to: this.json.name
+    });
+    this.updatePackageFile('devDependencies', {
+      "babel-loader": "^7.1.2",
+      webpack: "^3.10.0"
+    });
+    this.updatePackageFile('scripts', {
+      build: "webpack",
+      prepublishOnly: "npm run build"
+    });
+  }
+
+  updatePackageFile(key, value) {
+    if (!this.json[key]) {
+      this.json[key] = value instanceof Object ? {} : '';
     }
-    return this;
+    if (value instanceof Object) {
+      this.json[key] = Object.assign(this.json[key], value);
+    } else {
+      this.json[key] = value;
+    }
   }
 
   rewritePackageJson() {

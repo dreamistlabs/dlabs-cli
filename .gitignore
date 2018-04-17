@@ -59,6 +59,7 @@ typings/
 
 # apple ds store file
 .DS_Store
+files/.DS_Store
 
 # production files
 /build/
