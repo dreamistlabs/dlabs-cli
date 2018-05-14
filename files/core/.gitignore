@@ -59,7 +59,3 @@ typings/
 
 # dotenv environment variables file
 .env
-
-# Production folder
-/build/
-/dist/

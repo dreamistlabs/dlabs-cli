@@ -10,7 +10,7 @@ const replace = require('replace-in-file');
 /** file structure
  *  |-- root <project-name>
  *  |   |-- bin (cli)
- *  |   |-- dist
+ *  |   |-- lib
  *  |   |-- src
  *  |   |   |-- <project-name>.js
  *  |   |-- test
@@ -27,7 +27,6 @@ const replace = require('replace-in-file');
  */
 
 module.exports = class ModuleMaker {
-
   constructor(directory, command) {
     this.directory = directory
   , this.command = command
