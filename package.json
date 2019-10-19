@@ -1,8 +1,8 @@
 {
   "name": "npmqs-cli",
   "version": "0.0.1",
-  "description": "",
-  "main": "/bin/npmqs-cli.js",
+  "description": "The quickest way to start your next JS project",
+  "main": "./bin/npmqs-cli.js",
   "bin": {
     "npmqs": "./bin/npmqs-cli.js"
   },
@@ -11,10 +11,11 @@
     "url": "git+https://github.com/heyitsjhu/npmqs-cli.git"
   },
   "scripts": {
-    "compile": "babel src -d build -s inline",
+    "compile": "npx babel src -d bin -s inline",
     "prepublishOnly": "npm run compile",
+    "start": "nodemon --exec babel-node src/npmqs-cli.js",
     "test": "mocha --require babel-register --reporter spec test/*",
-    "watch": "babel src -d build -w"
+    "watch": "npm run compile -- --watch"
   },
   "bugs": {
     "url": "https://github.com/heyitsjhu/npmqs-cli/issues"
@@ -33,18 +34,22 @@
     "quickstart"
   ],
   "dependencies": {
-    "babel-polyfill": "^6.26.0",
-    "commander": "^2.11.0",
+    "@babel/polyfill": "^7.6.0",
+    "commander": "^3.0.2",
+    "core-js": "^3.3.2",
+    "file-exists": "^5.0.0",
+    "inquirer": "^7.0.0",
     "replace-in-file": "^3.0.0",
     "shelljs": "^0.7.8"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-core": "^6.26.3",
-    "babel-preset-env": "^1.7.0",
-    "babel-register": "^6.26.0",
+    "@babel/cli": "^7.6.4",
+    "@babel/core": "^7.6.4",
+    "@babel/node": "^7.6.3",
+    "@babel/plugin-transform-modules-commonjs": "^7.6.0",
+    "@babel/preset-env": "^7.6.3",
     "chai": "^4.1.2",
-    "file-exists": "^5.0.0",
-    "mocha": "^4.0.1"
+    "mocha": "^4.0.1",
+    "nodemon": "^1.19.4"
   }
 }

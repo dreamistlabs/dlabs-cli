@@ -1,11 +1,11 @@
-/**
- * helper libraries
- */
 const shell = require('shelljs');
+const inquirer = require('inquirer');
 const child_process = require('child_process');
 const fs = require('fs');
 const fileExists = require('file-exists');
 const replace = require('replace-in-file');
+
+const TEMPLATES = ['node', 'react'];
 
 /** file structure
  *  |-- root <project-name>
@@ -26,15 +26,29 @@ const replace = require('replace-in-file');
  *  |   |-- webpack.config.js
  */
 
-module.exports = class ModuleMaker {
-  constructor(directory, command) {
-    this.directory = directory
-  , this.command = command
-  , this.PACKAGE_JSON = 'package.json'
-  , this.PATH = this.setPathLocation()
-  , this.json = {};
+export default class ProjectCreator {
+  constructor(program) {
+    this.validate(program);
+
+    this.directory = 'directory';
+    this.command = command;
+    this.PACKAGE_JSON = 'package.json';
+    this.PATH = this.setPathLocation();
+    this.json = {};
 
     this.run();
+    //   inquirer
+    // .prompt([
+    //   /* Pass your questions in here */
+    //   // https://github.com/SBoudrias/Inquirer.js/#question
+    //   { type: 'input', name: 'projectName', message: "What's the name of your project?" },
+    // ])
+    // .then(answers => {
+    //   // Use user feedback for... whatever!!
+    //   console.log(answers);
+
+    //   // Instantiate new ProjectMaker()
+    // });
   }
 
   run() {
@@ -43,15 +57,31 @@ module.exports = class ModuleMaker {
     shell.cd(this.directory);
 
     this.setupPackageJson()
-        .setupFiles('core')
-        .setupFiles('ci')
-        .setupFiles('test')
-        .setupFiles('webpack')
-        .rewritePackageJson()
+      .setupFiles('core')
+      .setupFiles('ci')
+      .setupFiles('test')
+      .setupFiles('webpack')
+      .rewritePackageJson();
+  }
+
+  validate(program) {
+    console.log(program);
+
+    const { args } = program;
+
+    if (!args.length) {
+      console.error('packages required');
+      process.exit(1);
+    }
+
+    if (!TEMPLATES.includes(args[0])) {
+      console.error(`"${args[0]}" is not a valid template. Choose from: ${TEMPLATES.join(', ')}.`);
+      process.exit(1);
+    }
   }
 
   /*!
-   * 
+   *
    */
   // check for existing package.json file, running npm init if one doesn't exist.
   setupPackageJson() {
@@ -62,9 +92,11 @@ module.exports = class ModuleMaker {
     }
 
     if (fileExist) {
-      this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));  
+      this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));
     } else {
-      throw Error('You need to initialize a package.json file in order to run npmqs. Please try again');
+      throw Error(
+        'You need to initialize a package.json file in order to run npmqs. Please try again'
+      );
     }
     return this;
   }
@@ -91,41 +123,41 @@ module.exports = class ModuleMaker {
     return this;
   }
 
-
-
   // LOCATION finds the user's root folder where npmqs is installed.
   // PATH adds the filepath to npmqs-cli's module files.
   setPathLocation() {
-    const npmqsLocation = shell.exec('which npmqs', { silent: true })
-                               .stdout.trim()
-                               .replace(/(\/\w+){2}$/, '');
+    const npmqsLocation = shell
+      .exec('which npmqs', { silent: true })
+      .stdout.trim()
+      .replace(/(\/\w+){2}$/, '');
     return `${npmqsLocation}/lib/node_modules/npmqs-cli`;
   }
 
   setupCoreFiles(path) {
-    let coreFiles = [`${path}/core/*`, `${path}/.*`]; 
+    let coreFiles = [`${path}/core/*`, `${path}/.*`];
     shell.cp('-R', coreFiles, '.');
     fs.renameSync('src/index.js', `src/${this.json.name}.js`);
     replace({
-      files: ['README.md',],
+      files: ['README.md'],
       from: /placeholder/g,
-      to: this.json.name
+      to: this.json.name,
     });
     this.updatePackageFile('devDependencies', {
-      "babel-core": "^6.26.0",
-      "babel-preset-env": "^1.6.1"
+      'babel-core': '^6.26.0',
+      'babel-preset-env': '^1.6.1',
     });
-    this.updatePackageFile('main',`./src/${this.json.name}.js`);
+    this.updatePackageFile('main', `./src/${this.json.name}.js`);
   }
   setupContinuousIntegration(path) {
     let ciFiles = [`${path}/ci/.*`];
     shell.cp('-R', ciFiles, '.');
     this.updatePackageFile('devDependencies', {
-      coveralls: "^2.13.1",
-      istanbul: "^1.0.0-alpha"
+      coveralls: '^2.13.1',
+      istanbul: '^1.0.0-alpha',
     });
     this.updatePackageFile('scripts', {
-      cover: "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register",
+      cover:
+        'node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register',
     });
   }
 
@@ -133,20 +165,20 @@ module.exports = class ModuleMaker {
     let testFiles = [`${path}/test/*`];
     if (!shell.test('-d', 'test')) {
       shell.mkdir('test');
-    };
+    }
     shell.cp('-R', testFiles, 'test');
     replace({
       files: [`test/${this.json.name}.test.js`],
       from: /placeholder/g,
-      to: this.json.name
+      to: this.json.name,
     });
     this.updatePackageFile('devDependencies', {
-      "babel-register": "^6.26.0",
-      chai: "^4.0.2",
-      mocha: "^3.4.2"
+      'babel-register': '^6.26.0',
+      chai: '^4.0.2',
+      mocha: '^3.4.2',
     });
     this.updatePackageFile('scripts', {
-      test: "mocha -R spec test/* --require babel-register"
+      test: 'mocha -R spec test/* --require babel-register',
     });
   }
 
@@ -156,15 +188,15 @@ module.exports = class ModuleMaker {
     replace({
       files: ['webpack.config.js'],
       from: /placeholder/g,
-      to: this.json.name
+      to: this.json.name,
     });
     this.updatePackageFile('devDependencies', {
-      "babel-loader": "^7.1.2",
-      webpack: "^3.10.0"
+      'babel-loader': '^7.1.2',
+      webpack: '^3.10.0',
     });
     this.updatePackageFile('scripts', {
-      build: "webpack",
-      prepublishOnly: "npm run build"
+      build: 'webpack',
+      prepublishOnly: 'npm run build',
     });
   }
 
@@ -183,5 +215,4 @@ module.exports = class ModuleMaker {
     fs.writeFileSync(this.PACKAGE_JSON, JSON.stringify(this.json, null, 2));
     return this;
   }
-
 }
