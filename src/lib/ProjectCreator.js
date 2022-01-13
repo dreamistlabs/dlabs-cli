@@ -1,11 +1,11 @@
-const shell = require('shelljs');
-const inquirer = require('inquirer');
-const child_process = require('child_process');
-const fs = require('fs');
-const fileExists = require('file-exists');
-const replace = require('replace-in-file');
+const shell = require("shelljs");
+const inquirer = require("inquirer");
+const child_process = require("child_process");
+const fs = require("fs");
+const fileExists = require("file-exists");
+const replace = require("replace-in-file");
 
-const TEMPLATES = ['node', 'react'];
+const TEMPLATES = ["node", "react"];
 
 /** file structure
  *  |-- root <project-name>
@@ -30,9 +30,9 @@ export default class ProjectCreator {
   constructor(program) {
     this.validate(program);
 
-    this.directory = 'directory';
-    this.command = command;
-    this.PACKAGE_JSON = 'package.json';
+    this.directory = "directory";
+    // this.command = command;
+    this.PACKAGE_JSON = "package.json";
     this.PATH = this.setPathLocation();
     this.json = {};
 
@@ -52,30 +52,34 @@ export default class ProjectCreator {
   }
 
   run() {
-    shell.exec('echo Starting npmqs process... && sleep 1');
+    shell.exec("echo Starting npmqs process... && sleep 1");
     shell.mkdir(this.directory);
     shell.cd(this.directory);
 
     this.setupPackageJson()
-      .setupFiles('core')
-      .setupFiles('ci')
-      .setupFiles('test')
-      .setupFiles('webpack')
+      .setupFiles("core")
+      .setupFiles("ci")
+      .setupFiles("test")
+      .setupFiles("webpack")
       .rewritePackageJson();
   }
 
   validate(program) {
-    console.log(program);
+    // console.log(program);
 
     const { args } = program;
 
     if (!args.length) {
-      console.error('packages required');
+      console.error("packages required");
       process.exit(1);
     }
 
     if (!TEMPLATES.includes(args[0])) {
-      console.error(`"${args[0]}" is not a valid template. Choose from: ${TEMPLATES.join(', ')}.`);
+      console.error(
+        `"${args[0]}" is not a valid template. Choose from: ${TEMPLATES.join(
+          ", "
+        )}.`
+      );
       process.exit(1);
     }
   }
@@ -87,15 +91,15 @@ export default class ProjectCreator {
   setupPackageJson() {
     let fileExist = fileExists.sync(this.PACKAGE_JSON);
     if (!fileExist) {
-      child_process.execSync('npm init', { stdio: 'inherit' });
+      child_process.execSync("npm init", { stdio: "inherit" });
       fileExist = fileExists.sync(this.PACKAGE_JSON);
     }
 
     if (fileExist) {
-      this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, 'utf-8'));
+      this.json = JSON.parse(fs.readFileSync(this.PACKAGE_JSON, "utf-8"));
     } else {
       throw Error(
-        'You need to initialize a package.json file in order to run npmqs. Please try again'
+        "You need to initialize a package.json file in order to run npmqs. Please try again"
       );
     }
     return this;
@@ -104,16 +108,16 @@ export default class ProjectCreator {
   setupFiles(category) {
     const FILEPATH = `${this.PATH}/files`;
     switch (category) {
-      case 'core':
+      case "core":
         this.setupCoreFiles(FILEPATH);
         break;
-      case 'ci':
+      case "ci":
         this.setupContinuousIntegration(FILEPATH);
         break;
-      case 'test':
+      case "test":
         this.setupTestFiles(FILEPATH);
         break;
-      case 'webpack':
+      case "webpack":
         this.setupWebpack(FILEPATH);
         break;
       default:
@@ -127,82 +131,82 @@ export default class ProjectCreator {
   // PATH adds the filepath to npmqs-cli's module files.
   setPathLocation() {
     const npmqsLocation = shell
-      .exec('which npmqs', { silent: true })
+      .exec("which npmqs", { silent: true })
       .stdout.trim()
-      .replace(/(\/\w+){2}$/, '');
+      .replace(/(\/\w+){2}$/, "");
     return `${npmqsLocation}/lib/node_modules/npmqs-cli`;
   }
 
   setupCoreFiles(path) {
     let coreFiles = [`${path}/core/*`, `${path}/.*`];
-    shell.cp('-R', coreFiles, '.');
-    fs.renameSync('src/index.js', `src/${this.json.name}.js`);
+    shell.cp("-R", coreFiles, ".");
+    fs.renameSync("src/index.js", `src/${this.json.name}.js`);
     replace({
-      files: ['README.md'],
+      files: ["README.md"],
       from: /placeholder/g,
       to: this.json.name,
     });
-    this.updatePackageFile('devDependencies', {
-      'babel-core': '^6.26.0',
-      'babel-preset-env': '^1.6.1',
+    this.updatePackageFile("devDependencies", {
+      "babel-core": "^6.26.0",
+      "babel-preset-env": "^1.6.1",
     });
-    this.updatePackageFile('main', `./src/${this.json.name}.js`);
+    this.updatePackageFile("main", `./src/${this.json.name}.js`);
   }
   setupContinuousIntegration(path) {
     let ciFiles = [`${path}/ci/.*`];
-    shell.cp('-R', ciFiles, '.');
-    this.updatePackageFile('devDependencies', {
-      coveralls: '^2.13.1',
-      istanbul: '^1.0.0-alpha',
+    shell.cp("-R", ciFiles, ".");
+    this.updatePackageFile("devDependencies", {
+      coveralls: "^2.13.1",
+      istanbul: "^1.0.0-alpha",
     });
-    this.updatePackageFile('scripts', {
+    this.updatePackageFile("scripts", {
       cover:
-        'node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register',
+        "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/* --require babel-register",
     });
   }
 
   setupTestFiles(path) {
     let testFiles = [`${path}/test/*`];
-    if (!shell.test('-d', 'test')) {
-      shell.mkdir('test');
+    if (!shell.test("-d", "test")) {
+      shell.mkdir("test");
     }
-    shell.cp('-R', testFiles, 'test');
+    shell.cp("-R", testFiles, "test");
     replace({
       files: [`test/${this.json.name}.test.js`],
       from: /placeholder/g,
       to: this.json.name,
     });
-    this.updatePackageFile('devDependencies', {
-      'babel-register': '^6.26.0',
-      chai: '^4.0.2',
-      mocha: '^3.4.2',
+    this.updatePackageFile("devDependencies", {
+      "babel-register": "^6.26.0",
+      chai: "^4.0.2",
+      mocha: "^3.4.2",
     });
-    this.updatePackageFile('scripts', {
-      test: 'mocha -R spec test/* --require babel-register',
+    this.updatePackageFile("scripts", {
+      test: "mocha -R spec test/* --require babel-register",
     });
   }
 
   setupWebpack(path) {
     let webpackFiles = [`${path}/webpack/*`];
-    shell.cp('-R', webpackFiles, '.');
+    shell.cp("-R", webpackFiles, ".");
     replace({
-      files: ['webpack.config.js'],
+      files: ["webpack.config.js"],
       from: /placeholder/g,
       to: this.json.name,
     });
-    this.updatePackageFile('devDependencies', {
-      'babel-loader': '^7.1.2',
-      webpack: '^3.10.0',
+    this.updatePackageFile("devDependencies", {
+      "babel-loader": "^7.1.2",
+      webpack: "^3.10.0",
     });
-    this.updatePackageFile('scripts', {
-      build: 'webpack',
-      prepublishOnly: 'npm run build',
+    this.updatePackageFile("scripts", {
+      build: "webpack",
+      prepublishOnly: "npm run build",
     });
   }
 
   updatePackageFile(key, value) {
     if (!this.json[key]) {
-      this.json[key] = value instanceof Object ? {} : '';
+      this.json[key] = value instanceof Object ? {} : "";
     }
     if (value instanceof Object) {
       this.json[key] = Object.assign(this.json[key], value);

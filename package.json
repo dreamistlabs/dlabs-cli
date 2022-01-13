@@ -1,28 +1,28 @@
 {
-  "name": "npmqs-cli",
+  "name": "dlabs-cli",
   "version": "0.0.1",
-  "description": "The quickest way to start your next JS project",
-  "main": "./bin/npmqs-cli.js",
+  "description": "Command line interface to setup boilerplates for various DreamistLabs projects.",
+  "author": "Johnny Hu <johnny@dreamistlabs.com>",
+  "homepage": "https://github.com/dreamistlabs/dlabs-cli#readme",
+  "license": "MIT",
+  "main": "./bin/dlabs-cli.js",
   "bin": {
-    "npmqs": "./bin/npmqs-cli.js"
+    "dlabs": "./bin/dlabs-cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/heyitsjhu/npmqs-cli.git"
-  },
-  "scripts": {
-    "compile": "npx babel src -d bin -s inline",
-    "prepublishOnly": "npm run compile",
-    "start": "nodemon --exec babel-node src/npmqs-cli.js",
-    "test": "mocha --require babel-register --reporter spec test/*",
-    "watch": "npm run compile -- --watch"
+    "url": "git+https://github.com/dreamistlabs/dlabs-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/heyitsjhu/npmqs-cli/issues"
+    "url": "https://github.com/dreamistlabs/dlabs-cli/issues"
   },
-  "author": "Johnny Hu <heyitsjhu@gmailcom>",
-  "homepage": "https://github.com/heyitsjhu/npmqs-cli#readme",
-  "license": "MIT",
+  "scripts": {
+    "build": "babel src -d bin -s inline",
+    "prepublishOnly": "npm run build",
+    "start": "nodemon --exec babel-node src/dlabs-cli.js",
+    "test": "mocha --require babel-register --reporter spec test/*",
+    "watch": "npm run build -- --watch"
+  },
   "keywords": [
     "npm",
     "node",
@@ -30,26 +30,29 @@
     "starter",
     "kit",
     "cli",
-    "npmqs",
+    "dlabs",
+    "dreamistlabs",
     "quickstart"
   ],
   "dependencies": {
-    "@babel/polyfill": "^7.6.0",
-    "commander": "^3.0.2",
-    "core-js": "^3.3.2",
+    "commander": "^8.3.0",
+    "core-js": "^3.20.2",
     "file-exists": "^5.0.0",
-    "inquirer": "^7.0.0",
-    "replace-in-file": "^3.0.0",
-    "shelljs": "^0.7.8"
+    "inquirer": "^8.2.0",
+    "replace-in-file": "^6.3.2",
+    "shelljs": "^0.8.5"
   },
   "devDependencies": {
-    "@babel/cli": "^7.6.4",
-    "@babel/core": "^7.6.4",
-    "@babel/node": "^7.6.3",
-    "@babel/plugin-transform-modules-commonjs": "^7.6.0",
-    "@babel/preset-env": "^7.6.3",
+    "@babel/cli": "^7.16.8",
+    "@babel/core": "^7.16.7",
+    "@babel/node": "^7.16.8",
+    "@babel/plugin-transform-modules-commonjs": "^7.16.8",
+    "@babel/preset-env": "^7.16.8",
     "chai": "^4.1.2",
-    "mocha": "^4.0.1",
-    "nodemon": "^1.19.4"
+    "mocha": "^9.1.3",
+    "nodemon": "^2.0.15"
+  },
+  "optionalDependencies": {
+    "win-node-env": "^0.6.0"
   }
 }

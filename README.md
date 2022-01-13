@@ -1,1 +1,1 @@
-# npm-quickstart
+# dlabs-cli
