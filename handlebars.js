@@ -15,7 +15,7 @@ module.exports = function (UI) {
 
   // Removes the prefixes in the commit messages (e.g., added, changed, deprecated, etc.)
   UI.registerHelper('getCommitSections', () => {
-    const types = ['Added', 'Changed', 'Deprecated', 'Fixed', 'Removed', 'Security', 'Other'];
+    const types = ['Added', 'Changed', 'Deprecated', 'Fixed', 'Removed', 'Security', 'Chore'];
     const excludes = types
       .slice(0, types.length - 1)
       .map(type => `(${type}: )|(${type.toLowerCase()}: )`)

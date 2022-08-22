@@ -57,7 +57,8 @@ export default class ProjectCreator {
     this.PACKAGE_JSON_FILE = 'package.json';
     this.README_FILE = 'README.md';
     this.PATH = this._setPathLocation();
-    this.FILES_PATH = `${this.PATH}/files`;
+    // TODO: pipeline test fails attempting to look for dynmaic file path
+    this.FILES_PATH = this.IS_TEST_ENV ? '../files' : `${this.PATH}/files`;
     this.project = { directory: program.args[0], name: program.args[0] };
     this.isReact = false;
     this.babelConfig = {};
