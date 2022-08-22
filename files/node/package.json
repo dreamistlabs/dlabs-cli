@@ -1,0 +1,19 @@
+{
+  "name": "placeholder",
+  "description": "",
+  "author": "",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "version": "0.1.0",
+  "keywords": [
+    "node",
+    "npm"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {}
+}

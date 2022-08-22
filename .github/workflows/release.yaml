@@ -1,0 +1,22 @@
+name: dlabs-release-workflow
+
+# remember to setup NPM_TOKEN secret in GitHub.
+on: # releases any new tags at approximately (~ 5pm PST) on the following schedules
+  schedule:
+    - cron: '59 23 15 */1 *' # every 15th of the month
+    - cron: '59 23 30 */1 *' # every 30th of the month
+    - cron: '59 23 28 2 *' # on the 28th of February
+
+jobs:
+  dlabs-release-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 12
+      - run: npm install
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          check-version: true
+          token: ${{ secrets.NPM_TOKEN }}

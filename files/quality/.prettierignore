@@ -1,0 +1,14 @@
+# Ignore production folders
+**/bin
+**/build
+**/dist
+**/public
+
+# Ignore node_modules
+**/node_modules
+
+# Ignore handlebar files
+**/*.hbs
+
+# Ignore Markdown files
+**/*.md

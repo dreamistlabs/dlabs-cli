@@ -1,0 +1,15 @@
+.vscode/extensions.json
+.vscode/settings.json
+.clocignore
+.editorconfig
+.gitignore
+.npmignore
+CHANGELOG.md
+README.md
+REFERENCES.md
+CLOC.md
+LICENSE
+package.json
+package-lock.json
+**/package.json
+**/package-lock.json

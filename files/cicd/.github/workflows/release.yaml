@@ -1,0 +1,19 @@
+name: dlabs-release-workflow
+
+on: # 15th of every month, just before midnight UTC (~ 5pm PST)
+  schedule:
+    - cron: '59 23 15 */1 *'
+
+jobs:
+  dlabs-release-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 12
+      - run: npm install
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          check-version: true
+          token: ${{ secrets.NPM_TOKEN }}

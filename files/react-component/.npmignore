@@ -1,6 +1,5 @@
-# Development folders
+# Development folder
 src/
-scripts/
 
 # Coverage directory used by tools like istanbul
 coverage/
@@ -24,7 +23,10 @@ __mocks__
 .auto-changelog.json
 .clocignore
 changelog-template.hbs
-handlebars.json
+handlebars.js
+
+# babel
+babel.config.js
 
 # eslint and prettier files
 .editorconfig
