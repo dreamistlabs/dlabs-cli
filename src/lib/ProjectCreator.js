@@ -56,9 +56,9 @@ export default class ProjectCreator {
     this.TSCONFIG_FILE = 'tsconfig.json';
     this.PACKAGE_JSON_FILE = 'package.json';
     this.README_FILE = 'README.md';
-    this.PATH = this._setPathLocation();
+    this.PATH = !this.IS_TEST_ENV ? this._setPathLocation() : '..';
     // TODO: pipeline test fails attempting to look for dynmaic file path
-    this.FILES_PATH = this.IS_TEST_ENV ? '../files' : `${this.PATH}/files`;
+    this.FILES_PATH = `${this.PATH}/files`;
     this.project = { directory: program.args[0], name: program.args[0] };
     this.isReact = false;
     this.babelConfig = {};
@@ -570,7 +570,7 @@ export default class ProjectCreator {
   // PATH adds the FILES_PATH to dlabs-cli's module files.
   _setPathLocation() {
     // TODO need better way to differentiate between macOS and Windows FILES_PATHs
-    let dlabsLocation = shell.which('dlabs-cli').stdout.trim();
+    let dlabsLocation = shell.which('dlabs-cli')?.stdout?.trim();
 
     /* istanbul ignore if */
     if (dlabsLocation[0] === '/') {
