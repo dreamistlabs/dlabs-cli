@@ -361,6 +361,7 @@ export default class ProjectCreator {
         this.eslint.plugins = this.eslint.plugins.concat(TYPESCRIPT.PLUGINS);
 
         this._updatePackageFile('devDependencies', TYPESCRIPT.DEV_DEPENDENCIES);
+        this._updatePackageFile('scripts', TYPESCRIPT.SCRIPTS);
       }
     }
 

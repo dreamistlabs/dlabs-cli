@@ -50,15 +50,23 @@ export const NODE = {
     DEPENDENCIES: {},
     DEV_DEPENDENCIES: {
       '@babel/preset-typescript': '^7.18.6',
+      'ts-node': '^10.9.1',
       typescript: '^4.7.4',
     },
     PARSER_OPTIONS: { project: ['./tsconfig.json'] },
     SCRIPTS: {
-      build: 'rm -rf dist && babel src -d dist -s inline --extensions .ts && npm run build:types',
+      build: 'rm -rf dist && babel src -d dist -s inline --extensions .ts',
       'build:types': 'tsc --project tsconfig.json',
+      prepublishOnly: 'npm run build && npm run build:types',
+      start: 'nodemon dist/index.js',
     },
     TSCONFIG: {
-      compilerOptions: { declaration: true, emitDeclarationOnly: true, isolatedModules: true },
+      compilerOptions: {
+        declaration: true,
+        emitDeclarationOnly: true,
+        isolatedModules: true,
+        noEmit: false,
+      },
     },
   },
 };
@@ -135,6 +143,11 @@ export const QUALITY = {
     PARSER: '@typescript-eslint/parser',
     PARSER_OPTIONS: { ecmaFeatures: { jsx: true } },
     PLUGINS: ['@typescript-eslint'],
+    SCRIPTS: {
+      lint: 'eslint src --ext .ts,.tsx, --color --fix-dry-run',
+      'pretty-check': 'prettier --check "src/**/*.{ts,tsx}"',
+      'pretty-quick': 'pretty-quick --staged --pattern "src/**/*.*{ts,tsx}"',
+    },
   },
 };
 

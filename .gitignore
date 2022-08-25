@@ -134,3 +134,6 @@ changelog-preview.json
 
 # bin folder
 bin
+
+# temporary folder used for testing
+project-tester
