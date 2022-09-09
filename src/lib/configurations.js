@@ -72,6 +72,16 @@ export const NODE = {
 };
 
 // TODO: Setup up create-react-app dependencies and scripts; add storybook?
+export const REACT = {
+  JSCONFIG: {
+    compilerOptions: {
+      baseUrl: 'src',
+    },
+    exclude: ['node_modules'],
+    include: ['src'],
+    ignore: ['**/*.test.js', '**/*.test.ts'],
+  },
+};
 export const REACT_COMPONENT = {
   DEPENDENCIES: {},
   DEV_DEPENDENCIES: {

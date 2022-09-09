@@ -135,9 +135,14 @@ describe('ProjectCreator', () => {
       expect(module.TSCONFIG_FILE).toEqual('tsconfig.json');
       expect(module.PACKAGE_JSON_FILE).toEqual('package.json');
       expect(module.README_FILE).toEqual('README.md');
-      expect(module.babelConfig).toEqual({});
+      expect(module.babelConfig).toEqual({ presets: [] });
       expect(module.eslint).toEqual({});
-      expect(module.jsConfig).toEqual({});
+      expect(module.jsConfig).toEqual({
+        compilerOptions: {},
+        exclude: [],
+        include: [],
+        ignore: [],
+      });
       expect(module.json).toEqual({});
       expect(module.readme).toEqual('');
     });

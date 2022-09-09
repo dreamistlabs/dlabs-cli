@@ -6,7 +6,7 @@ import inquirer from 'inquirer';
 import os from 'os';
 import replace from 'replace-in-file';
 import shell from 'shelljs';
-import { COMMON, CONTINUOUS_INTEGRATION, NODE, QUALITY, TEST } from './configurations';
+import { COMMON, CONTINUOUS_INTEGRATION, NODE, QUALITY, REACT, TEST } from './configurations';
 import DLError from './DLError';
 
 export default class ProjectCreator {
@@ -61,9 +61,9 @@ export default class ProjectCreator {
     this.FILES_PATH = `${this.PATH}/files`;
     this.project = { directory: program.args[0], name: program.args[0] };
     this.isReact = false;
-    this.babelConfig = {};
+    this.babelConfig = { presets: [] };
     this.eslint = {};
-    this.jsConfig = {};
+    this.jsConfig = { compilerOptions: {}, exclude: [], include: [], ignore: [] };
     this.json = {};
     this.readme = '';
     this.name = {};
@@ -184,10 +184,28 @@ export default class ProjectCreator {
 
         if (useStorybook) {
           this._consoleOutput('info', setupStorybook);
+
           child_process.execSync(`npx storybook init`);
+
           // TODO: For TypeScript, may have to refer to: https://storybook.js.org/docs/react/configure/typescript
         }
       }
+
+      this.json = this._loadFileContents('JSON', this.PACKAGE_JSON_FILE);
+
+      if (useTypeScript) {
+        this.jsConfig = this._loadFileContents('JSON', this.TSCONFIG_FILE);
+      }
+
+      this.jsConfig = {
+        compilerOptions: {
+          ...this.jsConfig.compilerOptions,
+          ...REACT.JSCONFIG.compilerOptions,
+        },
+        exclude: [...(this.jsConfig.exclude || []), ...REACT.JSCONFIG.exclude],
+        include: [...(this.jsConfig.include || []), ...REACT.JSCONFIG.include],
+        ignore: [...(this.jsConfig.ignore || []), ...REACT.JSCONFIG.ignore],
+      };
     } else {
       this._setupFolderDirectory()._navigateToTargetDirectory(directory);
 
@@ -505,8 +523,8 @@ export default class ProjectCreator {
       this._consoleOutput('error', `${this.LOG_MESSAGES.cannotFindDirectory} ${this.project.name}`);
     }
 
-    // check if directory is not empty
-    if (fs.readdirSync('.').length > 0) {
+    // Checks if directory is empty for node projects. React projects won't be empty.
+    if (!this.isReact && fs.readdirSync('.').length > 0) {
       this._consoleOutput('error', this.LOG_MESSAGES.directoryNotEmpty);
     }
 
@@ -545,7 +563,10 @@ export default class ProjectCreator {
     // this._updatePackageFile("main", `./src/${this.json.name}.js`);
 
     // Rewrite updated this.babelConfig content to babel.config.json file.
-    this._writeContentsToFile('JSON', this.BABEL_CONFIG_FILE, this.babelConfig);
+    // React includes its own babel config internally
+    if (!this.isReact) {
+      this._writeContentsToFile('JSON', this.BABEL_CONFIG_FILE, this.babelConfig);
+    }
 
     // Rewrite updated this.eslint content to .eslintrc.json file.
     this._writeContentsToFile('JSON', this.ESLINT_FILE, this.eslint);
