@@ -1,46 +1,32 @@
 import chalk from 'chalk';
-import child_process from 'child_process';
 import fs from 'fs';
-import fileExists from 'file-exists';
 import inquirer from 'inquirer';
 import os from 'os';
 import replace from 'replace-in-file';
 import shell from 'shelljs';
-import { COMMON, CONTINUOUS_INTEGRATION, NODE, QUALITY, REACT, TEST } from './configurations';
+import execInColor from 'shelljs-live';
+import { CONFIGURATIONS, preparePackageJsonForExport } from './configurations';
 import DLError from './DLError';
+import pkg from '../../package.json';
+
+const { DLABS, NODE, NODE_TS, REACT, REACT_TS } = CONFIGURATIONS;
 
 export default class ProjectCreator {
   constructor(program) {
     this.IS_TEST_ENV = process.env.NODE_ENV === 'test';
-    this.LOG_MESSAGES = {
-      cannotFindDirectory: "Sorry, we couldn't find or access the target directory:",
-      copyCICDFiles: 'Copying CI/CD files and configurations...',
-      copyCommonFiles: 'Copying Common files and configurations...',
-      copyProjectFiles: 'Copying Project files and configurations...',
-      copyQualityFiles: 'Copying Quality files and configurations...',
-      copyTestFiles: 'Copying Test files and configurations...',
-      creatingDirectory: 'Creating project folder directory',
-      directoryNotEmpty: 'The current directory is not empty. Please ensure it is and try again.',
-      existingPackageJsonDetected:
-        'An existing package.json file was detected in the current directory. Please remove and try again.',
-      gitDetected: 'Git detected. Initializing project as a git repository.',
-      installNPMPackages: 'Installing npm packages. This might take a couple of minutes.',
-      noDirectorySpecified: 'No directory specified, so the current directory will be used.',
-      noPackageJsonDetected: 'No package.json detected in current directory. Please try again.',
-      noPathDetected: 'Unable to find dlabs-cli package location.',
-      noProgramDetected:
-        'No program detected. This is an error with @dreamistlabs/dlabs-cli, please open an issue on GitHub.',
-      processCompleted:
-        "The process has finished successfully. Please refer to the README.md file for more on what's included.",
-      promptRelatedError:
-        'There was an error with the user prompt interface. Please open an issue on GitHub.',
-      setupReact: 'Setting up React using create-react-app. This may take a few minutes...',
-      setupStorybook: 'Setting up Storybook. This may take a few minutes...',
-      startProcess: '\nCreating a new project using @dreamistlabs/dlabs-cli in',
-    };
+    this.IS_PROD_ENV = process.env.NODE_ENV === 'production';
 
     if (!program) {
-      this._consoleOutput('error', this.LOG_MESSAGES.noProgramDetected);
+      const errMessage = `No program detected. This is an error with ${pkg.name}, please open an issue on GitHub.`;
+      this.print(chalk.red(errMessage));
+      this.print(pkg.bugs.url);
+      throw new DLError(errMessage);
+    }
+
+    if (this.os === 'Linux') {
+      const errMessage = 'Sorry, Linux OS is not currently supported.';
+      this.print(chalk.red(errMessage));
+      throw new DLError(errMessage);
     }
 
     this.program = program;
@@ -49,6 +35,7 @@ export default class ProjectCreator {
     this.isWindows = this.os === 'Windows_NT';
     this.isMac = this.os === 'Darwin';
     this.isLinux = this.os === 'Linux';
+    this.isGitEnabled = !this.IS_TEST_ENV && shell.which('git');
     this.REACT_PROJECT_TYPES = ['react', 'react-component'];
     this.BABEL_CONFIG_FILE = 'babel.config.json';
     this.ESLINT_FILE = '.eslintrc.json';
@@ -56,19 +43,20 @@ export default class ProjectCreator {
     this.TSCONFIG_FILE = 'tsconfig.json';
     this.PACKAGE_JSON_FILE = 'package.json';
     this.README_FILE = 'README.md';
-    this.PATH = !this.IS_TEST_ENV ? this._setPathLocation() : '..';
-    // TODO: pipeline test fails attempting to look for dynmaic file path
+    this.STORYBOOK_FILE = '.storybook/main.js';
+    this.PATH = !this.IS_TEST_ENV ? this.setPathLocation() : '..';
+    // TODO: pipeline test fails attempting to look for dynamic file path
     this.FILES_PATH = `${this.PATH}/files`;
     this.project = { directory: program.args[0], name: program.args[0] };
+    this.isNode = false;
     this.isReact = false;
-    this.babelConfig = { presets: [] };
     this.eslint = {};
-    this.jsConfig = { compilerOptions: {}, exclude: [], include: [], ignore: [] };
+    this.jsTsConfig = { compilerOptions: {}, exclude: [], include: [], ignore: [] };
     this.json = {};
     this.readme = '';
     this.name = {};
+    this.checkmark = chalk.green.bold('✓');
 
-    this.USER_DEFAULTS = { useCICD: true, useQuality: true, useTesting: true };
     this.USER_QUESTIONS = [
       {
         type: 'list',
@@ -85,7 +73,7 @@ export default class ProjectCreator {
         type: 'confirm',
         name: 'useTypeScript',
         message: 'Do you want to use TypeScript?',
-        default: false,
+        default: true,
       },
       {
         type: 'confirm',
@@ -96,30 +84,12 @@ export default class ProjectCreator {
       },
       {
         type: 'confirm',
-        name: 'useDefaults',
-        message: 'Do you want to proceed with the default configurations?',
+        name: 'optOutTelemetry',
+        message: `Do you want to opt out of Storybook's usage telemetry? \n${chalk.dim(
+          'https://storybook.js.org/docs/react/configure/telemetry'
+        )}`,
         default: true,
-      },
-      {
-        type: 'confirm',
-        name: 'useQuality',
-        message: 'Do you want to add code quality checks?',
-        default: true,
-        when: answers => !answers.useDefaults,
-      },
-      {
-        type: 'confirm',
-        name: 'useCICD',
-        message: 'Do you want to add continuous integration?',
-        default: true,
-        when: answers => !answers.useDefaults,
-      },
-      {
-        type: 'confirm',
-        name: 'useTesting',
-        message: 'Do you want to add testing?',
-        default: true,
-        when: answers => !answers.useDefaults && !this.REACT_PROJECT_TYPES.includes(answers.type),
+        when: answers => answers.useStorybook,
       },
     ];
 
@@ -130,33 +100,82 @@ export default class ProjectCreator {
   }
 
   async run() {
-    await this._getProjectPreferences();
+    await this.getProjectPreferencesFromUser();
 
-    this._setupProjectFiles()
-      ._verifyPackageJson()
-      ._setupCommonFiles()
-      ._setupQualityFiles()
-      ._setupContinuousIntegrationFiles()
-      ._setupTestFiles()
-      ._rewriteModifiedContentToFiles()
-      ._initializeGit()
-      ._installNPMPackages();
+    this.print('\n');
+    this.print([
+      '> Preparing to create your project using',
+      chalk.bold('@dreamistlabs/dlabs-cli.'),
+      '\n',
+    ]);
+
+    this.setupInitialProjectFiles();
+    this.print([this.checkmark, 'Setup initial project files.']);
+
+    this.updateBaseProjectConfigurations();
+    this.print([this.checkmark, 'Update base project configurations.']);
+
+    this.setupDreamistLabsFilesAndConfigurations();
+    this.print([this.checkmark, `Setup ${pkg.name} files and configurations.`]);
+
+    this.exportConfigurationsToFile();
+    this.print([
+      this.checkmark,
+      `Export configurations to ${this.PACKAGE_JSON_FILE} and ${
+        this.project.useTypeScript ? this.TSCONFIG_FILE : this.JSCONFIG_FILE
+      }.`,
+    ]);
+
+    if (this.isNode) {
+      /* istanbul ignore if  */
+      if (this.isGitEnabled) {
+        const { stdout } = shell.exec('git rev-parse --show-toplevel  --quiet');
+        if (!stdout) {
+          shell.exec('git init  --quiet');
+          this.print([this.checkmark, 'Initialize a git repository.']);
+        }
+      }
+    }
+
+    /* istanbul ignore if  */
+    if (!this.IS_TEST_ENV) {
+      this.print('> Installing project dependencies using npm...');
+      shell.exec('npm install --silent');
+    }
+
+    if (this.isGitEnabled) {
+      const { stdout } = shell.exec('git rev-parse --quiet --show-toplevel');
+      const checkGit = new RegExp(`^.+${this.project.name}$`).test(stdout);
+      console.log('hello', stdout, new RegExp(`^.+${this.project.name}$`), checkGit);
+
+      if (checkGit) {
+        shell.exec('git add -q .');
+        shell.exec(`git commit -q -m "Added: Initial project structure using ${pkg.name}"`);
+        this.print([this.checkmark, 'Create git commit.']);
+      }
+    }
 
     shell.cd('..');
-    this._consoleOutput('info', this.LOG_MESSAGES.processCompleted);
+
+    this.print([
+      this.checkmark,
+      chalk.bold('Your project is now ready!'),
+      'View the README.md file to learn more about the project architecture.',
+    ]);
   }
 
   /**
    *
    * @returns
    */
-  async _getProjectPreferences() {
+  async getProjectPreferencesFromUser() {
     await this.prompt(this.USER_QUESTIONS)
       .then(userPreferences => {
-        this.project = { ...this.project, ...this.USER_DEFAULTS, ...userPreferences };
+        this.project = { ...this.project, ...userPreferences };
+        this.isNode = this.project.type === 'node';
         this.isReact = this.REACT_PROJECT_TYPES.includes(this.project.type);
       })
-      .catch(this._userPreferenceErrorHandler);
+      .catch(this.userPreferenceErrorHandler);
 
     return this;
   }
@@ -164,8 +183,7 @@ export default class ProjectCreator {
   /**
    *
    */
-  _setupProjectFiles() {
-    const { copyProjectFiles, setupReact, setupStorybook } = this.LOG_MESSAGES;
+  setupInitialProjectFiles() {
     const { directory, useStorybook, useTypeScript, type } = this.project;
 
     // ignoring top-level isReact logic since it currently doesn't include anything
@@ -176,71 +194,52 @@ export default class ProjectCreator {
       if (!this.IS_TEST_ENV) {
         const includeTypeScript = useTypeScript ? ' --template typescript' : '';
 
-        this._consoleOutput('info', setupReact);
+        execInColor(`npx create-react-app ${directory}${includeTypeScript}`);
 
-        child_process.execSync(`npx create-react-app ${directory}${includeTypeScript}`);
-
-        this._navigateToTargetDirectory(directory);
+        this.navigateToTargetDirectory(directory);
 
         if (useStorybook) {
-          this._consoleOutput('info', setupStorybook);
-
-          child_process.execSync(`npx storybook init`);
+          execInColor('npx storybook init');
 
           // TODO: For TypeScript, may have to refer to: https://storybook.js.org/docs/react/configure/typescript
+
+          // https://storybook.js.org/docs/react/configure/telemetry
+          if (this.project.optOutTelemetry) {
+            const fileContent = fs.readFileSync(this.STORYBOOK_FILE, 'utf8');
+            const content = JSON.parse(fileContent.replace('module.exports = ', ''));
+
+            content.core = { ...content.core, disableTelemetry: true };
+
+            fs.writeFileSync(
+              this.STORYBOOK_FILE,
+              'module.exports = '.concat(JSON.stringify(content))
+            );
+
+            this.print([this.checkmark, "Opt out of Storybook's usage telemetry."]);
+            this.print(`See ${this.project.name}/${this.STORYBOOK_FILE} for configuration`);
+          }
         }
       }
+    } else {
+      const { directory } = this.project;
 
-      this.json = this._loadFileContents('JSON', this.PACKAGE_JSON_FILE);
-
-      if (useTypeScript) {
-        this.jsConfig = this._loadFileContents('JSON', this.TSCONFIG_FILE);
+      // create directory if it doesn't exist
+      if (!fs.existsSync(directory)) {
+        shell.mkdir(directory);
+        this.print([this.checkmark, `Setup project directory for ${this.project.name}.`]);
       }
 
-      this.jsConfig = {
-        compilerOptions: {
-          ...this.jsConfig.compilerOptions,
-          ...REACT.JSCONFIG.compilerOptions,
-        },
-        exclude: [...(this.jsConfig.exclude || []), ...REACT.JSCONFIG.exclude],
-        include: [...(this.jsConfig.include || []), ...REACT.JSCONFIG.include],
-        ignore: [...(this.jsConfig.ignore || []), ...REACT.JSCONFIG.ignore],
-      };
-    } else {
-      this._setupFolderDirectory()._navigateToTargetDirectory(directory);
+      this.navigateToTargetDirectory(directory);
 
       const filename = this._formatNameInPascalCase();
       const nodeFiles = [`${this.FILES_PATH}/${type}/*`, `${this.FILES_PATH}/${type}/.*`];
 
-      this._consoleOutput('info', copyProjectFiles);
       shell.cp('-R', nodeFiles, '.');
 
       replace.sync({ files: [`src/**/*.js`], from: /Placeholder/g, to: filename });
       shell.mv(`src/lib/Placeholder.js`, `src/lib/${filename}.js`);
 
-      this.babelConfig = this._loadFileContents('JSON', this.BABEL_CONFIG_FILE);
-      this.jsConfig = this._loadFileContents('JSON', this.JSCONFIG_FILE);
-      this.json = this._loadFileContents('JSON', this.PACKAGE_JSON_FILE);
-
-      this._updatePackageFile('name', this.project.name);
-      this._updatePackageFile('devDependencies', NODE.BASE.DEV_DEPENDENCIES);
-      this._updatePackageFile('scripts', NODE.BASE.SCRIPTS);
-      this._updateReadMeContent('node');
-
       if (useTypeScript) {
-        this._updatePackageFile('devDependencies', NODE.TYPESCRIPT.DEV_DEPENDENCIES);
-        this._updatePackageFile('scripts', NODE.TYPESCRIPT.SCRIPTS);
-
-        this.eslint.parserOptions = {
-          ...this.eslint.parserOptions,
-          ...NODE.TYPESCRIPT.PARSER_OPTIONS,
-        };
-
-        this.jsConfig.compilerOptions = {
-          ...this.jsConfig.compilerOptions,
-          ...NODE.TYPESCRIPT.TSCONFIG.compilerOptions,
-        };
-
         shell.mv('src/index.js', 'src/index.ts');
         shell.mv(`src/lib/${filename}.js`, `src/lib/${filename}.ts`);
       }
@@ -249,25 +248,78 @@ export default class ProjectCreator {
     return this;
   }
 
-  /**
-   * Determines whether or not to create a new directory or
-   * use the current directory and also checks if there are
-   * files in the directory which would terminate the process.
-   */
-  _setupFolderDirectory() {
-    const { noDirectorySpecified, startProcess } = this.LOG_MESSAGES;
-    const { directory } = this.project;
+  // Add base configurations based on project type
+  updateBaseProjectConfigurations() {
+    if (this.isNode) {
+      const {
+        json: { babel, dependencies, devDependencies, jest, scripts, template },
+        jsconfig,
+      } = NODE.base;
+      const {
+        json: {
+          babel: babelTS,
+          dependencies: dependenciesTS,
+          devDependencies: devDependenciesTS,
+          scripts: scriptsTS,
+        },
+        tsconfig,
+      } = NODE_TS.base;
 
-    if (directory === '.') {
-      this._consoleOutput('info', noDirectorySpecified);
+      this.json = template;
+      this.updatePackageJson('babel', babel);
+      this.updatePackageJson('dependencies', dependencies);
+      this.updatePackageJson('devDependencies', devDependencies);
+      this.updatePackageJson('jest', jest);
+      this.updatePackageJson('scripts', scripts);
+
+      this.jsTsConfig = jsconfig;
+
+      if (this.project.useTypeScript) {
+        this.json.babel = {
+          ...this.json.babel,
+          presets: this.json.babel.presets.concat(babelTS.presets),
+        };
+
+        this.updatePackageJson('dependencies', dependenciesTS);
+        this.updatePackageJson('devDependencies', devDependenciesTS);
+        this.updatePackageJson('scripts', scriptsTS);
+
+        this.jsTsConfig = {
+          ...this.jsTsConfig,
+          compilerOptions: {
+            ...this.jsTsConfig.compilerOptions,
+            ...tsconfig.compilerOptions,
+          },
+        };
+      }
+    } else if (this.isReact) {
+      this.json = this.readFileContents('JSON', this.PACKAGE_JSON_FILE);
+
+      const {
+        json: { babel, eslintConfig, jest },
+        jsconfig,
+      } = REACT.base;
+
+      // Load from file for TypeScript, otherwise init from configuration
+      this.jsTsConfig = this.project.useTypeScript
+        ? this.readFileContents('JSON', this.TSCONFIG_FILE)
+        : jsconfig;
+
+      this.updatePackageJson('babel', babel);
+      this.updatePackageJson('eslintConfig', eslintConfig);
+      this.updatePackageJson('jest', jest);
+
+      if (this.project.useTypeScript) {
+        const { tsconfig: compilerOptions, exclude, ignore } = REACT_TS.base;
+
+        this.jsTsConfig.compilerOptions = {
+          ...this.jsTsConfig.compilerOptions,
+          ...compilerOptions,
+        };
+        this.jsTsConfig.exclude = exclude;
+        this.jsTsConfig.ignore = ignore;
+      }
     }
-
-    // create directory if it doesn't exist
-    if (!fs.existsSync(directory)) {
-      shell.mkdir(directory);
-    }
-
-    this._consoleOutput('info', `${startProcess} ${shell.pwd()}`);
 
     return this;
   }
@@ -279,17 +331,40 @@ export default class ProjectCreator {
    * like
    * @param {*} path
    */
-  _setupCommonFiles() {
-    const { DEV_DEPENDENCIES, SCRIPTS } = COMMON;
-    const commonFiles = [`${this.FILES_PATH}/common/*`, `${this.FILES_PATH}/common/.*`];
+  setupDreamistLabsFilesAndConfigurations() {
+    const {
+      devDependencies,
+      scripts,
+      'auto-changelog': autoChangelog,
+      eslintConfig,
+      jest,
+      prettier,
+    } = DLABS.base.json;
 
-    this._consoleOutput('info', this.LOG_MESSAGES.copyCommonFiles);
-    shell.cp('-R', commonFiles, '.');
-    shell.cp('-R', `${this.FILES_PATH}/readme/common.md`, '.');
-    shell.mv(`common.md`, `README.md`);
+    shell.cp('-R', [`${this.FILES_PATH}/dlabs/*`, `${this.FILES_PATH}/dlabs/.*`], '.');
+
+    this.updatePackageJson('devDependencies', devDependencies);
+    this.updatePackageJson('scripts', scripts);
+    this.updatePackageJson('auto-changelog', autoChangelog);
+    this.updatePackageJson('jest', jest);
+    this.updatePackageJson('prettier', prettier);
+
+    this.json.eslintConfig = {
+      ...this.json.eslintConfig,
+      extends: this.json.eslintConfig.extends.concat(eslintConfig.extends),
+      parserOptions: eslintConfig.parserOptions,
+      plugins: this.json.eslintConfig.plugins.concat(eslintConfig.plugins),
+      rules: {
+        ...this.json.eslintConfig.rules,
+        ...eslintConfig.rules,
+      },
+      settings: {
+        ...this.json.eslintConfig.settings,
+        ...eslintConfig.settings,
+      },
+    };
 
     // TODO: Maybe always copy README? Dynamically inject more info into README
-    // based on user options (useCICD, useQuality, etc)
     if (!this.isReact) {
       replace.sync({
         files: [this.README_FILE],
@@ -300,163 +375,76 @@ export default class ProjectCreator {
       // TODO override create-react-app readme for isReact projects?
     }
 
-    // this current overrides any methods before this that also updates this.readme (projectFiles)
-    this.readme = this._loadFileContents('README', this.README_FILE);
-    this._updatePackageFile('devDependencies', DEV_DEPENDENCIES);
-    this._updatePackageFile('scripts', SCRIPTS);
+    if (this.isNode) {
+      replace.sync({
+        files: 'src/index.test.js',
+        from: /Placeholder/g,
+        to: this._formatNameInPascalCase(),
+      });
 
-    return this;
-  }
-
-  /**
-   * github actions?
-   * @returns
-   */
-  _setupContinuousIntegrationFiles() {
-    if (this.project.useCICD) {
-      const { BASE, SCRIPTS } = CONTINUOUS_INTEGRATION;
-      const cicdFiles = [`${this.FILES_PATH}/cicd/.*`];
-
-      this._consoleOutput('info', this.LOG_MESSAGES.copyCICDFiles);
-      shell.cp('-R', cicdFiles, '.');
-
-      this._updatePackageFile('devDependencies', BASE.DEV_DEPENDENCIES);
-      this._updatePackageFile('scripts', SCRIPTS);
-      this._updateReadMeContent('cicd');
-    }
-
-    return this;
-  }
-
-  /**
-   * commitlint, eslint, prettier, husky, madge
-   * @returns
-   */
-  _setupQualityFiles() {
-    if (this.project.useQuality) {
-      const { BASE, REACT, TYPESCRIPT } = QUALITY;
-      const qualityFiles = [`${this.FILES_PATH}/quality/.*`, `${this.FILES_PATH}/quality/*`];
-
-      this._consoleOutput('info', this.LOG_MESSAGES.copyQualityFiles);
-      shell.cp('-R', qualityFiles, '.');
-
-      this.eslint = this._loadFileContents('JSON', this.ESLINT_FILE);
-      this._updatePackageFile('devDependencies', BASE.DEV_DEPENDENCIES);
-      this._updatePackageFile('scripts', BASE.SCRIPTS);
-      this._updateReadMeContent('quality');
-
-      const { parserOptions, rules, settings } = this.eslint;
-
-      if (this.REACT_PROJECT_TYPES.includes(this.project.type)) {
-        // Remove the eslintConfig property injected by create-react-app.
-        delete this.json.eslintConfig;
-
-        // full stack inclusion will likely need these eslint declarations
-        this.eslint.extends = this.eslint.extends.concat(REACT.EXTENDS);
-        this.eslint.plugins = this.eslint.plugins.concat(REACT.PLUGINS);
-        this.eslint.parserOptions = { ...parserOptions, ...REACT.PARSER_OPTIONS };
-        this.eslint.rules = { ...rules, ...REACT.RULES };
-        this.eslint.settings = { ...settings, ...REACT.SETTINGS };
-
-        this._updatePackageFile('devDependencies', REACT.DEV_DEPENDENCIES);
-      }
-
-      // TODO: Fullstack option - we will probably need to manually add
-      // certain eslint plugins and extensions for fullstack boilerplate projects
-      // if (this.project.type === "fullstack") {
-      //   this.devDependencies = this.devDependencies.concat(
-      //     FULLSTACK.DEV_DEPENDENCIES
-      //   );
-      // }
-
-      // do a typescript check or create it's own function?
       if (this.project.useTypeScript) {
-        this.babelConfig.presets = this.babelConfig.presets.concat(TYPESCRIPT.BABEL.PRESETS);
+        const { devDependencies, eslintConfig, jest } = NODE_TS.dlabs.json;
+        shell.mv('src/index.test.js', 'src/index.test.ts');
 
-        this.eslint.extends = this.eslint.extends.concat(TYPESCRIPT.EXTENDS);
-        this.eslint.parser = TYPESCRIPT.PARSER;
-        this.eslint.parserOptions = { ...parserOptions, ...TYPESCRIPT.PARSER_OPTIONS };
-        this.eslint.plugins = this.eslint.plugins.concat(TYPESCRIPT.PLUGINS);
+        this.updatePackageJson('devDependencies', devDependencies);
+        this.updatePackageJson('jest', jest);
 
-        this._updatePackageFile('devDependencies', TYPESCRIPT.DEV_DEPENDENCIES);
-        this._updatePackageFile('scripts', TYPESCRIPT.SCRIPTS);
-      }
-    }
-
-    return this;
-  }
-
-  /**
-   * jest
-   */
-  _setupTestFiles() {
-    if (this.project.useTesting) {
-      const { BASE, REACT, TYPESCRIPT } = TEST;
-
-      this._consoleOutput('info', this.LOG_MESSAGES.copyTestFiles);
-      shell.cp('-R', [`${this.FILES_PATH}/test/__mocks__`], '.');
-
-      this._updatePackageFile('devDependencies', BASE.DEV_DEPENDENCIES);
-      this._updatePackageFile('scripts', BASE.SCRIPTS);
-      this._updateReadMeContent('test');
-
-      this.eslint.extends = this.eslint.extends.concat(BASE.EXTENDS);
-      this.eslint.plugins = this.eslint.plugins.concat(BASE.PLUGINS);
-      this.eslint.rules = { ...this.eslint.rules, ...BASE.RULES };
-      this.eslint.settings = { ...this.eslint.settings, ...BASE.SETTINGS };
-      this.json.jest = BASE.CONFIG;
-
-      if (this.isReact) {
-        const { moduleFileExtensions, moduleNameMapper } = this.json.jest;
-
-        this._updatePackageFile('dependencies', REACT.DEPENDENCIES);
-        this._updatePackageFile('devDependencies', REACT.DEV_DEPENDENCIES);
-
-        this.eslint.extends = this.eslint.extends.concat(REACT.EXTENDS);
-        this.eslint.plugins = this.eslint.plugins.concat(REACT.PLUGINS);
-        this.eslint.rules = { ...this.eslint.rules, ...REACT.RULES };
-        this.json.jest = {
-          ...this.json.jest,
-          moduleFileExtensions: moduleFileExtensions.concat(REACT.CONFIG.moduleFileExtensions),
-          moduleNameMapper: { ...moduleNameMapper, ...REACT.CONFIG.moduleNameMapper },
+        this.json.eslintConfig = {
+          ...this.json.eslintConfig,
+          extends: this.json.eslintConfig.extends.concat(eslintConfig.extends),
+          parser: eslintConfig.parser,
+          parserOptions: {
+            ...this.json.eslintConfig.parserOptions,
+            project: eslintConfig.parserOptions.project,
+          },
+          plugins: this.json.eslintConfig.plugins.concat(eslintConfig.plugins),
         };
-      } else {
-        shell.cp('-R', [`${this.FILES_PATH}/test/index.test.js`], 'src');
+      }
+    } else if (this.isReact) {
+      const { dependencies, devDependencies, eslintConfig } = REACT.dlabs.json;
 
-        replace.sync({
-          files: 'src/index.test.js',
-          from: /Placeholder/g,
-          to: this._formatNameInPascalCase(),
-        });
+      this.updatePackageJson('dependencies', dependencies);
+      this.updatePackageJson('devDependencies', devDependencies);
 
-        if (this.project.useTypeScript) {
-          this._updatePackageFile('devDependencies', TYPESCRIPT.DEV_DEPENDENCIES);
+      this.json.eslintConfig = {
+        ...this.json.eslintConfig,
+        extends: this.json.eslintConfig.extends.concat(eslintConfig.extends),
+        parserOptions: {
+          ...this.json.eslintConfig.parserOptions,
+          ecmaFeatures: {
+            ...this.json.eslintConfig.parserOptions.ecmaFeatures,
+            ...eslintConfig.parserOptions.ecmaFeatures,
+          },
+        },
+        plugins: this.json.eslintConfig.plugins.concat(eslintConfig.plugins),
+        settings: {
+          ...this.json.eslintConfig.settings,
+          ...eslintConfig.settings,
+        },
+      };
 
-          this.json.jest = {
-            ...this.json.jest,
-            moduleFileExtensions: TYPESCRIPT.CONFIG.moduleFileExtensions,
-            preset: TYPESCRIPT.CONFIG.preset,
-            testRegex: TYPESCRIPT.CONFIG.testRegex,
-          };
+      if (this.project.useTypeScript) {
+        const { devDependencies, eslintConfig } = REACT_TS.dlabs.json;
 
-          shell.mv('src/index.test.js', 'src/index.test.ts');
-        }
+        this.updatePackageJson('devDependencies', devDependencies);
+
+        this.json.eslintConfig = {
+          ...this.json.eslintConfig,
+          extends: this.json.eslintConfig.extends.concat(eslintConfig.extends),
+          parser: eslintConfig.parser,
+          parserOptions: {
+            ...this.json.eslintConfig.parserOptions,
+            project: eslintConfig.parserOptions.project,
+          },
+          plugins: this.json.eslintConfig.plugins.concat(eslintConfig.plugins),
+        };
       }
     }
 
-    return this;
-  }
+    // this current overrides any methods before this that also updates this.readme (projectFiles)
+    // this.readme = this.readFileContents('README', this.README_FILE);
 
-  _consoleOutput(type, message) {
-    if (type === 'error') {
-      /* istanbul ignore next */
-      !this.IS_TEST_ENV && shell.echo(chalk.red(message));
-      throw new DLError(message);
-    } else {
-      /* istanbul ignore next */
-      !this.IS_TEST_ENV && shell.echo(chalk.white(message));
-      shell.exec('sleep 1');
-    }
+    return this;
   }
 
   /**
@@ -470,46 +458,7 @@ export default class ProjectCreator {
       .join('');
   }
 
-  _initializeGit() {
-    // check if git is installed
-    if (shell.which('git')) {
-      this._consoleOutput('info', this.LOG_MESSAGES.gitDetected);
-
-      /* istanbul ignore if  */
-      if (!this.IS_TEST_ENV) {
-        shell.exec('git init');
-      }
-    }
-
-    return this;
-  }
-
-  /**
-   *
-   * @returns
-   */
-  _installNPMPackages() {
-    this._consoleOutput('info', this.LOG_MESSAGES.installNPMPackages);
-
-    /* istanbul ignore if  */
-    if (!this.IS_TEST_ENV) {
-      shell.exec('npm install');
-    }
-
-    return this;
-  }
-
-  _isInTargetDirectory(directory) {
-    return shell.pwd().stdout.includes(directory);
-  }
-
-  _loadFileContents(type = 'JSON', fileLocation) {
-    return type === 'JSON'
-      ? JSON.parse(fs.readFileSync(fileLocation, 'utf-8'))
-      : fs.readFileSync(fileLocation, 'utf8');
-  }
-
-  _navigateToTargetDirectory(directory) {
+  navigateToTargetDirectory(directory) {
     let isInTargetDirectory = shell.pwd().stdout.includes(directory);
 
     // try to navigate to directory if not already in it.
@@ -520,12 +469,9 @@ export default class ProjectCreator {
 
     // if it's still not in target directory, exit process
     if (!isInTargetDirectory) {
-      this._consoleOutput('error', `${this.LOG_MESSAGES.cannotFindDirectory} ${this.project.name}`);
-    }
-
-    // Checks if directory is empty for node projects. React projects won't be empty.
-    if (!this.isReact && fs.readdirSync('.').length > 0) {
-      this._consoleOutput('error', this.LOG_MESSAGES.directoryNotEmpty);
+      const errMessage = "Sorry, we couldn't find or access the target directory:";
+      this.print(chalk.red(`${errMessage} ${this.project.name}`));
+      throw new DLError(`${errMessage} ${this.project.name}`);
     }
 
     return this;
@@ -535,89 +481,42 @@ export default class ProjectCreator {
    *
    * @returns
    */
-  _rewriteModifiedContentToFiles() {
-    const { dependencies, devDependencies, optionalDependencies, jest, scripts } = this.json;
-
-    // Reorder the following properties in package.json
-    if (dependencies) {
-      this.json.dependencies = this._sortEntries(dependencies);
-    }
-
-    if (devDependencies) {
-      this.json.devDependencies = this._sortEntries(devDependencies);
-    }
-
-    if (optionalDependencies) {
-      this.json.optionalDependencies = this._sortEntries(optionalDependencies);
-    }
-
-    if (jest) {
-      this.json.jest = this._sortEntries(jest);
-    }
-
-    if (scripts) {
-      this.json.scripts = this._sortEntries(scripts);
-    }
-    // Should we rename the index file? how about the main property in package.json?
-    // fs.renameSync("src/index.js", `src/${this.json.name}.js`);
-    // this._updatePackageFile("main", `./src/${this.json.name}.js`);
-
-    // Rewrite updated this.babelConfig content to babel.config.json file.
-    // React includes its own babel config internally
-    if (!this.isReact) {
-      this._writeContentsToFile('JSON', this.BABEL_CONFIG_FILE, this.babelConfig);
-    }
-
-    // Rewrite updated this.eslint content to .eslintrc.json file.
-    this._writeContentsToFile('JSON', this.ESLINT_FILE, this.eslint);
-
-    // Rewrite updated this.jsconfig content to jsconfig.json file.
-    this._writeContentsToFile('JSON', this.JSCONFIG_FILE, this.jsConfig);
+  exportConfigurationsToFile() {
+    this.json = preparePackageJsonForExport(this.json);
 
     // Rewrite updated this.json content to package.json file.
-    this._writeContentsToFile('JSON', this.PACKAGE_JSON_FILE, this.json);
+    this.writeContentsToFile('JSON', this.PACKAGE_JSON_FILE, this.json);
+
+    // Rewrite updated this.jsconfig content to jsconfig.json file.
+    const filename = this.project.useTypeScript ? this.TSCONFIG_FILE : this.JSCONFIG_FILE;
+    this.writeContentsToFile('JSON', filename, this.jsTsConfig);
 
     // Rewrite updated this.readme content to README.md file.
-    this._writeContentsToFile('README', this.README_FILE, this.readme);
-
-    // Rename jsconfig.json to tsconfig.json
-    if (this.project.useTypeScript) {
-      shell.mv(this.JSCONFIG_FILE, this.TSCONFIG_FILE);
-    }
+    // this.writeContentsToFile('README', this.README_FILE, this.readme);
 
     return this;
   }
 
   // LOCATION finds the user's root folder where dlabs-cli is installed.
   // PATH adds the FILES_PATH to dlabs-cli's module files.
-  _setPathLocation() {
+  setPathLocation() {
     // TODO need better way to differentiate between macOS and Windows FILES_PATHs
-    let dlabsLocation = shell.which('dlabs-cli')?.stdout?.trim();
+    let dlabsPkgLocation = shell.which('dlabs-cli') || shell.which('dlabs');
+    let dlabsLocation = dlabsPkgLocation?.stdout?.trim();
 
     /* istanbul ignore if */
-    if (dlabsLocation[0] === '/') {
-      dlabsLocation = dlabsLocation.replace(/(\/\w+){1}$/, '');
-      return `${dlabsLocation}/lib/node_modules/dlabs-cli`;
-    } else if (dlabsLocation.includes('C:')) {
+    if (dlabsLocation?.[0] === '/') {
+      dlabsLocation = dlabsLocation.replace(/(\/bin\/dlabs-cli)/, '');
+      return `${dlabsLocation}/lib/node_modules/@dreamistlabs/dlabs-cli`;
+    } else if (dlabsLocation?.includes('C:')) {
       dlabsLocation = dlabsLocation.replace(/\\DLABS-CLI.CMD/, '').replace(/\\\\/g, '\\');
       return `${dlabsLocation.toLowerCase()}\\node_modules\\dlabs-cli`;
     } else {
-      this._consoleOutput('error', this.LOG_MESSAGES.noPathDetected);
+      const errMessage = `Unable to find ${pkg.name} package location. This is an error with ${pkg.name}, please open an issue on GitHub.`;
+      this.print(chalk.red(errMessage));
+      this.print(pkg.bugs.url);
+      throw new DLError(errMessage);
     }
-  }
-
-  _sortEntries(object) {
-    const sortedEntries = Object.entries(object).sort((a, b) => a[0].localeCompare(b[0]));
-
-    return Object.fromEntries(sortedEntries);
-  }
-
-  _verifyPackageJson() {
-    if (!fileExists.sync(this.PACKAGE_JSON_FILE)) {
-      this._consoleOutput('error', this.LOG_MESSAGES.noPackageJsonDetected);
-    }
-
-    return this;
   }
 
   /**
@@ -625,7 +524,7 @@ export default class ProjectCreator {
    * @param {*} key
    * @param {*} value
    */
-  _updatePackageFile(key, value) {
+  updatePackageJson(key, value) {
     if (!this.json[key]) {
       this.json[key] = value instanceof Object ? {} : '';
     }
@@ -637,18 +536,45 @@ export default class ProjectCreator {
   }
 
   _updateReadMeContent(filename) {
-    const content = this._loadFileContents('README', `${this.FILES_PATH}/readme/${filename}.md`);
+    const content = this.readFileContents('README', `${this.FILES_PATH}/readme/${filename}.md`);
 
     this.readme = this.readme.concat(`\n\n${content}`);
   }
 
-  _userPreferenceErrorHandler(error) {
-    this._consoleOutput('error', error?.message || this.LOG_MESSAGES.promptRelatedError);
+  userPreferenceErrorHandler(error) {
+    const errMessage =
+      'An error occurred related to the user prompt interface. Please open an issue on GitHub.';
+    this.print(chalk.red(error?.message || errMessage));
+    this.print(pkg.bugs.url);
+    throw new DLError(error?.message || errMessage);
   }
 
-  _writeContentsToFile(type = 'JSON', fileLocation, fileContent) {
+  readFileContents(type = 'JSON', fileLocation) {
+    return type === 'JSON'
+      ? JSON.parse(fs.readFileSync(fileLocation, 'utf-8'))
+      : fs.readFileSync(fileLocation, 'utf8');
+  }
+
+  writeContentsToFile(type = 'JSON', fileLocation, fileContent) {
     const content = type === 'JSON' ? JSON.stringify(fileContent, null, 2) : fileContent;
 
     fs.writeFileSync(fileLocation, content);
+  }
+
+  print(message) {
+    if (!message) return;
+
+    /* istanbul ignore next */
+    if (!this.IS_TEST_ENV) {
+      const output = chalk.hex('#0C4C74');
+
+      if (Array.isArray(message)) {
+        shell.echo(output.apply(null, message));
+      } else {
+        shell.echo(output(message));
+      }
+    }
+
+    shell.exec('sleep 1');
   }
 }

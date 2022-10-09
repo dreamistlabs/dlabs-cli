@@ -136,4 +136,7 @@ changelog-preview.json
 bin
 
 # temporary folder used for testing
-project-tester
+**/test-in-progress
+
+# ds_store
+.DS_Store

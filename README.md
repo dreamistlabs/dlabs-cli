@@ -41,3 +41,8 @@ This project was created using `@dreamistlabs/dlabs-cli` and contains a predefin
 - **`handlebars.js`** - file containing pre-defined helper functions used in the `changelog-template.hbs` file for things like date formatting and prefix removals.
 - **`package.json`** - package file containing dependencies, scripts and other configurations.
 - **`README.md`** - _this file!_
+
+# TODO
+ - add logger to template projects
+ - add react-router to cra projects?
+ - add i18next for cra projects?

@@ -10,8 +10,8 @@ program
   .description(
     "Command-line interface for setting up various types of projects using DreamistLabs' architecture"
   )
-  .usage('<name> [options]')
-  .argument('<name>', "the project's name")
+  .usage('<project-name> [options]')
+  .argument('<project-name>', "the project's name")
   .version(pckg.version, '-v, --version', 'show current version')
   .parse(process.argv);
 
